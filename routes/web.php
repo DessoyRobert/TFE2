@@ -16,6 +16,7 @@ use App\Http\Controllers\CoolerController;
 use App\Http\Controllers\CaseModelController;
 
 Route::resource('components', ComponentController::class);
+/*
 Route::resource('cpus', CpuController::class);
 Route::resource('gpus', GpuController::class);
 Route::resource('rams', RamController::class);
@@ -24,7 +25,7 @@ Route::resource('storages', StorageController::class);
 Route::resource('psus', PsuController::class);
 Route::resource('coolers', CoolerController::class);
 Route::resource('cases', CaseModelController::class);
-
+*/
 Route::get('/', function () {
     return Inertia::render('Welcome', [
         'canLogin' => Route::has('login'),
