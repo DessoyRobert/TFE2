@@ -44,6 +44,13 @@ class Component extends Model
         return $this->hasOne(CaseModel::class);
     }
 
+    public function builds()
+    {
+    return $this->belongsToMany(Build::class, 'build_component')
+        ->withPivot('quantity')
+        ->withTimestamps();
+    }
+
 
 }
 
