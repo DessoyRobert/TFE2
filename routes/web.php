@@ -5,17 +5,17 @@ use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
-use App\Http\Controllers\ComponentController;
-use App\Http\Controllers\CpuController;
-use App\Http\Controllers\GpuController;
-use App\Http\Controllers\RamController;
-use App\Http\Controllers\MotherboardController;
-use App\Http\Controllers\StorageController;
-use App\Http\Controllers\PsuController;
-use App\Http\Controllers\CoolerController;
-use App\Http\Controllers\CaseModelController;
 
-Route::resource('components', ComponentController::class);
+
+use App\Http\Controllers\ComponentController;
+use App\Http\Controllers\BuildController;
+use App\Http\Controllers\BrandController;
+use App\Http\Controllers\CategoryController;
+
+Route::resource('builds', App\Http\Controllers\BuildController::class);
+Route::resource('components', App\Http\Controllers\ComponentController::class);
+Route::resource('brands', App\Http\Controllers\BrandController::class);
+Route::resource('categories', App\Http\Controllers\CategoryController::class);
 /*
 Route::resource('cpus', CpuController::class);
 Route::resource('gpus', GpuController::class);

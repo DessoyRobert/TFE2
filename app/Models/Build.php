@@ -13,7 +13,7 @@ class Build extends Model
 
     public function components()
     {
-        return $this->belongsToMany(Component::class, 'build_component')
+        return $this->belongsToMany(Component::class, 'build_components')
             ->withPivot('quantity')
             ->withTimestamps();
     }

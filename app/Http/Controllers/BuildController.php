@@ -2,63 +2,107 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Build;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 class BuildController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
     public function index()
     {
-        //
+        $builds = Build::with(['components'])->get();
+        return Inertia::render('Builds/Index', ['builds' => $builds]);
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
     public function create()
     {
-        //
+        return Inertia::render('Builds/Create');
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
     public function store(Request $request)
     {
-        //
+        $data = $request->validate([
+            'name'        => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'price'       => 'nullable|numeric',
+            // 'user_id'   => 'required|exists:users,id', // Active si besoin
+            'components'  => 'nullable|array',
+            'components.*.component_id' => 'required|exists:components,id',
+            'components.*.quantity'     => 'required|integer|min:1'
+        ]);
+
+        $build = Build::create([
+            'name'        => $data['name'],
+            'description' => $data['description'] ?? null,
+            'price'       => $data['price'] ?? null,
+            // 'user_id'   => $data['user_id'] ?? null,
+        ]);
+
+        // Ajoute les composants avec la quantité sur la table pivot
+        if (!empty($data['components'])) {
+            $syncData = [];
+            foreach ($data['components'] as $comp) {
+                $syncData[$comp['component_id']] = [
+                    'quantity' => $comp['quantity']
+                ];
+            }
+            $build->components()->attach($syncData);
+        }
+
+        return redirect()->route('builds.index');
     }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(string $id)
+    public function show(Build $build)
     {
-        //
+        $build->load(['components']);
+        return Inertia::render('Builds/Show', ['build' => $build]);
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(string $id)
+    public function edit(Build $build)
     {
-        //
+        $build->load(['components']);
+        return Inertia::render('Builds/Edit', ['build' => $build]);
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, string $id)
+    public function update(Request $request, Build $build)
     {
-        //
+        $data = $request->validate([
+            'name'        => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'price'       => 'nullable|numeric',
+            'components'  => 'nullable|array',
+            'components.*.component_id' => 'required|exists:components,id',
+            'components.*.quantity'     => 'required|integer|min:1'
+        ]);
+
+        $build->update([
+            'name'        => $data['name'],
+            'description' => $data['description'] ?? null,
+            'price'       => $data['price'] ?? null,
+        ]);
+
+        // Sync les composants et quantités
+        if (!empty($data['components'])) {
+            $syncData = [];
+            foreach ($data['components'] as $comp) {
+                $syncData[$comp['component_id']] = [
+                    'quantity' => $comp['quantity']
+                ];
+            }
+            $build->components()->sync($syncData);
+        } else {
+            // Si plus de composants sélectionnés, on vide
+            $build->components()->detach();
+        }
+
+        return redirect()->route('builds.index');
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(string $id)
+    public function destroy(Build $build)
     {
-        //
+        $build->components()->detach();
+        $build->delete();
+
+        return redirect()->route('builds.index');
     }
 }
