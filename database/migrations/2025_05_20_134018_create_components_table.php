@@ -6,31 +6,22 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
-public function up()
-{
-    Schema::create('components', function (Blueprint $table) {
-        $table->id();
-        $table->string('name');
-        $table->string('brand');
-        $table->enum('type', [
-            'cpu', 'gpu', 'ram', 'motherboard', 'storage', 'psu', 'cooler', 'case'
-        ]);
-        $table->decimal('price', 10, 2)->nullable();
-        $table->string('img_url')->nullable();
-        $table->text('description')->nullable();
-        $table->year('release_year')->nullable();
-        $table->string('ean')->nullable();
-        $table->timestamps();
-    });
-}
+    public function up()
+    {
+        Schema::create('components', function (Blueprint $table) {
+            $table->id();
+            $table->string('name');
+            $table->string('brand');
+            $table->foreignId('component_type_id')->constrained('component_types');
+            $table->decimal('price', 10, 2)->nullable();
+            $table->string('img_url')->nullable();
+            $table->text('description')->nullable();
+            $table->year('release_year')->nullable();
+            $table->string('ean')->nullable();
+            $table->timestamps();
+        });
+    }
 
-
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('components');

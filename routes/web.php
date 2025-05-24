@@ -7,25 +7,7 @@ use Inertia\Inertia;
 
 
 
-use App\Http\Controllers\ComponentController;
-use App\Http\Controllers\BuildController;
-use App\Http\Controllers\BrandController;
-use App\Http\Controllers\CategoryController;
 
-Route::resource('builds', App\Http\Controllers\BuildController::class);
-Route::resource('components', App\Http\Controllers\ComponentController::class);
-Route::resource('brands', App\Http\Controllers\BrandController::class);
-Route::resource('categories', App\Http\Controllers\CategoryController::class);
-/*
-Route::resource('cpus', CpuController::class);
-Route::resource('gpus', GpuController::class);
-Route::resource('rams', RamController::class);
-Route::resource('motherboards', MotherboardController::class);
-Route::resource('storages', StorageController::class);
-Route::resource('psus', PsuController::class);
-Route::resource('coolers', CoolerController::class);
-Route::resource('cases', CaseModelController::class);
-*/
 Route::get('/', function () {
     return Inertia::render('Welcome', [
         'canLogin' => Route::has('login'),

@@ -14,6 +14,7 @@ class DatabaseSeeder extends Seeder
 public function run()
 {
     $this->call([
+        ComponentTypeSeeder::class,
         ComponentSeeder::class,
         CpuSeeder::class,
         GpuSeeder::class,
@@ -23,7 +24,8 @@ public function run()
         PsuSeeder::class,
         CoolerSeeder::class,
         CaseSeeder::class,
-    ]);
+           ]);
+    // Create a default user
         User::factory()->create([
             'name' => 'Test User',
             'email' => 'test@example.com',

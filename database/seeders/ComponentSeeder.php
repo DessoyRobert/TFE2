@@ -7,14 +7,16 @@ use App\Models\Component;
 use App\Models\Cpu;
 
 class ComponentSeeder extends Seeder
-{
+{   
+    
     public function run()
-    {
+    {   
+        $cpuTypeId = ComponentType::where('name', 'cpu')->first()->id;
         // Ex: Ajout d'un CPU
         $component = Component::create([
             'name' => 'AMD Ryzen 7 5800X',
             'brand' => 'AMD',
-            'type' => 'cpu',
+            'component_type_id' => $cpuTypeId, 
             'price' => 319.99,
             'img_url' => 'https://example.com/ryzen7.jpg',
             'description' => 'Un excellent processeur gaming.',
