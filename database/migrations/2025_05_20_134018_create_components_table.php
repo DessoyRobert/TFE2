@@ -11,7 +11,6 @@ return new class extends Migration
         Schema::create('components', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->string('brand');
             $table->foreignId('component_type_id')->constrained('component_types');
             $table->decimal('price', 10, 2)->nullable();
             $table->string('img_url')->nullable();

@@ -15,14 +15,14 @@ public function up()
         $table->id();
         $table->foreignId('component_id')->constrained('components')->onDelete('cascade');
         $table->string('chipset');
-        $table->unsignedSmallInteger('vram'); // en Go
-        $table->unsignedSmallInteger('base_clock')->nullable(); // MHz
-        $table->unsignedSmallInteger('boost_clock')->nullable(); // MHz
-        $table->unsignedSmallInteger('tdp')->nullable(); // Watts
-        $table->unsignedSmallInteger('length_mm')->nullable();
+        $table->string('memory');        
+        $table->integer('base_clock')->nullable();
+        $table->integer('boost_clock')->nullable();
         $table->timestamps();
     });
 }
+
+
 
 
     /**

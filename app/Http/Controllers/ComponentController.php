@@ -20,15 +20,16 @@ class ComponentController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'name' => 'required',
-            'brand' => 'required',
-            'component_type_id' => 'required|exists:component_types,id',
-            'price' => 'nullable|numeric',
-            'img_url' => 'nullable|string',
-            'description' => 'nullable|string',
-            'release_year' => 'nullable|integer',
-            'ean' => 'nullable|string'
-        ]);
+        'name' => 'required',
+        'brand_id' => 'required|exists:brands,id',
+        'component_type_id' => 'required|exists:component_types,id',
+        'price' => 'nullable|numeric',
+        'img_url' => 'nullable|string',
+        'description' => 'nullable|string',
+        'release_year' => 'nullable|integer',
+        'ean' => 'nullable|string'
+    ]);
+
         $component = Component::create($data);
 
         // Chercher le nom du type via la relation
@@ -52,15 +53,16 @@ class ComponentController extends Controller
     {
         $component = Component::findOrFail($id);
         $data = $request->validate([
-            'name' => 'required',
-            'brand' => 'required',
-            'component_type_id' => 'required|exists:component_types,id',
-            'price' => 'nullable|numeric',
-            'img_url' => 'nullable|string',
-            'description' => 'nullable|string',
-            'release_year' => 'nullable|integer',
-            'ean' => 'nullable|string'
-        ]);
+        'name' => 'required',
+        'brand_id' => 'required|exists:brands,id',
+        'component_type_id' => 'required|exists:component_types,id',
+        'price' => 'nullable|numeric',
+        'img_url' => 'nullable|string',
+        'description' => 'nullable|string',
+        'release_year' => 'nullable|integer',
+        'ean' => 'nullable|string'
+    ]);
+
         $component->update($data);
 
         return response()->json($component);

@@ -15,6 +15,8 @@ public function run()
 {
     $this->call([
         ComponentTypeSeeder::class,
+        CategorySeeder::class,
+        BrandSeeder::class,
         ComponentSeeder::class,
         CpuSeeder::class,
         GpuSeeder::class,

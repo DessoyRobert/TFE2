@@ -5,28 +5,33 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 use App\Models\Component;
 use App\Models\Psu;
+use App\Models\Brand;
+use App\Models\ComponentType;
+use App\Models\Category;
 
 class PsuSeeder extends Seeder
 {
     public function run()
     {
+        $brandId = Brand::where('name', 'Corsair')->first()?->id;
+        $typeId = ComponentType::where('name', 'psu')->first()?->id;
+        $categoryId = Category::where('name', 'Alimentation')->first()?->id;
+
         $component = Component::create([
             'name' => 'Corsair RM850x',
-            'brand' => 'Corsair',
-            'type' => 'psu',
-            'price' => 139.99,
-            'img_url' => 'https://example.com/rm850x.jpg',
-            'description' => 'Alimentation modulaire 80+ Gold 850W.',
-            'release_year' => 2023,
-            'ean' => '1234567890128'
+            'brand_id' => $brandId,
+            'component_type_id' => $typeId,
+            'category_id' => $categoryId,
+            'price' => 149.99,
+            'description' => '850W, 80+ Gold, entièrement modulaire.',
         ]);
 
         Psu::create([
-            'component_id' => $component->id,
-            'wattage' => 850,
-            'certification' => '80+ Gold',
-            'modular' => true,
-            'form_factor' => 'ATX'
+            'component_id'   => $component->id,
+            'wattage'        => 850,
+            'certification'  => '80+ Gold',
+            'modular'        => true,
+            'form_factor'    => 'ATX',
         ]);
     }
 }

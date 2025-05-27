@@ -8,7 +8,7 @@ class Component extends Model
 {
     protected $fillable = [
         'name',
-        'brand',
+        'brand_id',        // Clé étrangère vers Brand
         'component_type_id',    // Clé étrangère vers ComponentType
         'price',
         'img_url',
@@ -22,7 +22,14 @@ class Component extends Model
     {
         return $this->belongsTo(ComponentType::class, 'component_type_id');
     }
-
+    public function brand()
+    {
+        return $this->belongsTo(Brand::class);
+    }
+    public function category()
+    {
+        return $this->belongsTo(Category::class);
+    }
     // Relations spécialisées (ok à garder)
     public function cpu()         { return $this->hasOne(Cpu::class); }
     public function gpu()         { return $this->hasOne(Gpu::class); }
@@ -39,4 +46,6 @@ class Component extends Model
         return $this->belongsToMany(Build::class, 'build_component')
             ->withTimestamps();
     }
+    
+
 }

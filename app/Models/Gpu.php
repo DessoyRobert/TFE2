@@ -4,10 +4,15 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class Gpu extends Model
-{
+class Gpu extends Component
+{   
+    use Traits\HasBrand;
     protected $fillable = [
-        'component_id', 'chipset', 'vram', 'base_clock', 'boost_clock', 'tdp', 'length_mm'
+        'component_id',
+        'chipset',
+        'memory',
+        'base_clock',
+        'boost_clock',
     ];
 
     public function component()

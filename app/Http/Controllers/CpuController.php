@@ -3,106 +3,68 @@
 namespace App\Http\Controllers;
 
 use App\Models\Cpu;
-use App\Models\Component;
 use Illuminate\Http\Request;
-use Inertia\Inertia;
+use Illuminate\Http\Response;
 
 class CpuController extends Controller
 {
     public function index()
     {
-        $cpus = Cpu::with('component')->get();
-        return Inertia::render('Cpus/Index', [
-            'cpus' => $cpus,
-        ]);
-    }
-
-    public function show(Cpu $cpu)
-    {
-        $cpu->load('component');
-        return Inertia::render('Cpus/Show', [
-            'cpu' => $cpu,
-        ]);
-    }
-
-    public function create()
-    {
-        // On peut proposer la création d’un composant ici aussi, à adapter selon ton flow
-        return Inertia::render('Cpus/Create');
+        return response()->json(
+            Cpu::with('brand')->get(),
+            Response::HTTP_OK
+        );
     }
 
     public function store(Request $request)
     {
-        $validatedComponent = $request->validate([
-            'component.name' => 'required',
-            'component.brand' => 'required',
-            'component.type' => 'required|in:cpu',
-            'component.price' => 'nullable|numeric',
-            'component.img_url' => 'nullable|string',
-            'component.description' => 'nullable|string',
-            'component.release_year' => 'nullable|integer',
-            'component.ean' => 'nullable|string'
+        $validated = $request->validate([
+            'name'        => 'required|string|max:255',
+            'brand_id'    => 'required|exists:brands,id',
+            'socket'      => 'required|string|max:50',
+            'cores'       => 'required|integer|min:1',
+            'threads'     => 'required|integer|min:1',
+            'base_clock'  => 'required|numeric|min:0',
+            'boost_clock' => 'nullable|numeric|min:0',
+            'tdp'         => 'required|integer|min:0',
+            'price'       => 'required|numeric|min:0',
         ]);
-        $validatedCpu = $request->validate([
-            'socket' => 'required',
-            'core_count' => 'required|integer',
-            'thread_count' => 'required|integer',
-            'base_clock' => 'nullable|numeric',
-            'boost_clock' => 'nullable|numeric',
-            'tdp' => 'nullable|integer',
-            'integrated_graphics' => 'nullable|string'
-        ]);
-        // Créer d'abord le component parent
-        $component = Component::create($validatedComponent['component']);
-        // Puis le CPU lié
-        $validatedCpu['component_id'] = $component->id;
-        Cpu::create($validatedCpu);
 
-        return redirect()->route('cpus.index');
+        $cpu = Cpu::create($validated);
+
+        return response()->json($cpu, Response::HTTP_CREATED);
     }
 
-    public function edit(Cpu $cpu)
+    public function show(Cpu $cpu)
     {
-        $cpu->load('component');
-        return Inertia::render('Cpus/Edit', [
-            'cpu' => $cpu
-        ]);
+        $cpu->load('brand');
+
+        return response()->json($cpu, Response::HTTP_OK);
     }
 
     public function update(Request $request, Cpu $cpu)
     {
-        $validatedComponent = $request->validate([
-            'component.name' => 'required',
-            'component.brand' => 'required',
-            'component.type' => 'required|in:cpu',
-            'component.price' => 'nullable|numeric',
-            'component.img_url' => 'nullable|string',
-            'component.description' => 'nullable|string',
-            'component.release_year' => 'nullable|integer',
-            'component.ean' => 'nullable|string'
+        $validated = $request->validate([
+            'name'        => 'required|string|max:255',
+            'brand_id'    => 'required|exists:brands,id',
+            'socket'      => 'required|string|max:50',
+            'cores'       => 'required|integer|min:1',
+            'threads'     => 'required|integer|min:1',
+            'base_clock'  => 'required|numeric|min:0',
+            'boost_clock' => 'nullable|numeric|min:0',
+            'tdp'         => 'required|integer|min:0',
+            'price'       => 'required|numeric|min:0',
         ]);
-        $validatedCpu = $request->validate([
-            'socket' => 'required',
-            'core_count' => 'required|integer',
-            'thread_count' => 'required|integer',
-            'base_clock' => 'nullable|numeric',
-            'boost_clock' => 'nullable|numeric',
-            'tdp' => 'nullable|integer',
-            'integrated_graphics' => 'nullable|string'
-        ]);
-        // Update component
-        $cpu->component->update($validatedComponent['component']);
-        // Update cpu
-        $cpu->update($validatedCpu);
 
-        return redirect()->route('cpus.index');
+        $cpu->update($validated);
+
+        return response()->json($cpu, Response::HTTP_OK);
     }
 
     public function destroy(Cpu $cpu)
     {
-        // Supprime aussi le component parent
-        $cpu->component->delete();
         $cpu->delete();
-        return redirect()->route('cpus.index');
+
+        return response()->json(null, Response::HTTP_NO_CONTENT);
     }
 }

@@ -4,58 +4,47 @@ namespace App\Http\Controllers;
 
 use App\Models\Brand;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 
 class BrandController extends Controller
 {
     public function index()
     {
-        return Brand::all();
-    }
-
-    public function create()
-    {
-        
+        // Si tu veux charger une relation (ex: 'products'), ajoute ->with('products')
+        return response()->json(Brand::all(), Response::HTTP_OK);
     }
 
     public function store(Request $request)
     {
-        $request->validate([
+        $validated = $request->validate([
             'name' => 'required|string|unique:brands,name|max:255',
         ]);
 
-        $brand = Brand::create([
-            'name' => $request->name,
-        ]);
+        $brand = Brand::create($validated);
 
-        return response()->json($brand, 201);
+        return response()->json($brand, Response::HTTP_CREATED);
     }
 
     public function show(Brand $brand)
     {
-        return $brand;
-    }
-
-    public function edit(Brand $brand)
-    {
-        // Si tu utilises une vue pour éditer, sinon inutile en API
+        return response()->json($brand, Response::HTTP_OK);
     }
 
     public function update(Request $request, Brand $brand)
     {
-        $request->validate([
-            'name' => 'required|string|unique:brands,name,' . $brand->id,
+        $validated = $request->validate([
+            'name' => 'required|string|max:255|unique:brands,name,' . $brand->id,
         ]);
 
-        $brand->update([
-            'name' => $request->name,
-        ]);
+        $brand->update($validated);
 
-        return response()->json($brand);
+        return response()->json($brand, Response::HTTP_OK);
     }
 
     public function destroy(Brand $brand)
     {
         $brand->delete();
-        return response()->json(null, 204);
+
+        return response()->json(null, Response::HTTP_NO_CONTENT);
     }
 }

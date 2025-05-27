@@ -7,54 +7,52 @@ use Illuminate\Http\Request;
 
 class CategoryController extends Controller
 {
+    // GET /api/categories
     public function index()
     {
-        return Category::all();
+        // Si tu veux afficher aussi les components liés : ->with('components')
+        $categories = Category::all();
+        return response()->json($categories);
     }
 
-    public function create()
+    // GET /api/categories/{id}
+    public function show($id)
     {
-        // Pour une vue de création (inutile en API)
+        // Avec les components associés si besoin
+        $category = Category::with('components')->findOrFail($id);
+        return response()->json($category);
     }
 
+    // POST /api/categories
     public function store(Request $request)
     {
-        $request->validate([
-            'name' => 'required|string|unique:categories,name|max:255',
+        $validated = $request->validate([
+            'name' => 'required|string|max:255|unique:categories,name',
         ]);
 
-        $category = Category::create([
-            'name' => $request->name,
-        ]);
+        $category = Category::create($validated);
 
         return response()->json($category, 201);
     }
 
-    public function show(Category $category)
+    // PUT/PATCH /api/categories/{id}
+    public function update(Request $request, $id)
     {
-        return $category;
-    }
+        $category = Category::findOrFail($id);
 
-    public function edit(Category $category)
-    {
-        // Pour une vue d’édition (inutile en API)
-    }
-
-    public function update(Request $request, Category $category)
-    {
-        $request->validate([
-            'name' => 'required|string|unique:categories,name,' . $category->id,
+        $validated = $request->validate([
+            'name' => 'required|string|max:255|unique:categories,name,' . $category->id,
         ]);
 
-        $category->update([
-            'name' => $request->name,
-        ]);
+        $category->update($validated);
 
         return response()->json($category);
     }
 
-    public function destroy(Category $category)
+    // DELETE /api/categories/{id}
+    public function destroy($id)
     {
+        $category = Category::findOrFail($id);
         $category->delete();
         return response()->json(null, 204);
     }

@@ -2,63 +2,67 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Motherboard;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 
 class MotherboardController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
     public function index()
     {
-        //
+        return response()->json(
+            Motherboard::with('brand')->get(),
+            Response::HTTP_OK
+        );
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        //
-    }
-
-    /**
-     * Store a newly created resource in storage.
-     */
     public function store(Request $request)
     {
-        //
+        $validated = $request->validate([
+            'name'        => 'required|string|max:255',
+            'brand_id'    => 'required|exists:brands,id',
+            'socket'      => 'required|string|max:50',
+            'chipset'     => 'required|string|max:100',
+            'form_factor' => 'required|string|max:20',
+            'ram_type'    => 'required|string|max:10',
+            'max_ram'     => 'required|integer|min:1',
+            'price'       => 'required|numeric|min:0',
+        ]);
+
+        $motherboard = Motherboard::create($validated);
+
+        return response()->json($motherboard, Response::HTTP_CREATED);
     }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(string $id)
+    public function show(Motherboard $motherboard)
     {
-        //
+        $motherboard->load('brand');
+
+        return response()->json($motherboard, Response::HTTP_OK);
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(string $id)
+    public function update(Request $request, Motherboard $motherboard)
     {
-        //
+        $validated = $request->validate([
+            'name'        => 'required|string|max:255',
+            'brand_id'    => 'required|exists:brands,id',
+            'socket'      => 'required|string|max:50',
+            'chipset'     => 'required|string|max:100',
+            'form_factor' => 'required|string|max:20',
+            'ram_type'    => 'required|string|max:10',
+            'max_ram'     => 'required|integer|min:1',
+            'price'       => 'required|numeric|min:0',
+        ]);
+
+        $motherboard->update($validated);
+
+        return response()->json($motherboard, Response::HTTP_OK);
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, string $id)
+    public function destroy(Motherboard $motherboard)
     {
-        //
-    }
+        $motherboard->delete();
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(string $id)
-    {
-        //
+        return response()->json(null, Response::HTTP_NO_CONTENT);
     }
 }

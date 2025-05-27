@@ -3,16 +3,13 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Models\Traits\HasComponents;
 
 class Brand extends Model
 {
-    // Nom de la table si jamais tu veux le préciser explicitement (optionnel)
-    // protected $table = 'brands';
+    use HasComponents;
 
-    protected $fillable = ['name'];
-
-    public function components()
-    {
-        return $this->hasMany(Component::class);
-    }
+    protected $fillable = [
+        'name',
+    ];
 }

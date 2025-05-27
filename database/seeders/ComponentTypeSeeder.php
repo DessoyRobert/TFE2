@@ -8,18 +8,22 @@ use App\Models\ComponentType;
 
 class ComponentTypeSeeder extends Seeder
 {
-    public function run(): void
-    {
-        DB::table('component_types')->insert([
-            ['name' => 'cpu'],
-            ['name' => 'gpu'],
-            ['name' => 'ram'],
-            ['name' => 'motherboard'],
-            ['name' => 'storage'],
-            ['name' => 'psu'],
-            ['name' => 'cooler'],
-            ['name' => 'case_model'],
-        ]);
+public function run()
+{
+    $types = [
+        'cpu',
+        'gpu',
+        'ram',
+        'storage',
+        'psu',
+        'cooler',
+        'case',
+        'motherboard',
+    ];
+    foreach ($types as $type) {
+        \App\Models\ComponentType::create(['name' => $type]);
     }
+}
+
 }
 
