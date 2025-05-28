@@ -6,14 +6,20 @@ use App\Models\CaseModel;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 
-class CaseController extends Controller
+class CaseModelController extends Controller
 {
     public function index()
     {
-        return response()->json(
-            CaseModel::with('brand')->get(),
-            Response::HTTP_OK
-        );
+        return CaseModel::with('component')->get()->map(function ($case) {
+            return [
+                'id' => $case->id,
+                'component_id' => $case->component_id,
+                'name' => $case->component->name,
+                'price' => $case->component->price,
+                'img_url' => $case->component->img_url,
+                'form_factor' => $case->form_factor,
+            ];
+        });
     }
 
     public function store(Request $request)

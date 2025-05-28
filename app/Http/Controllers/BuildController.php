@@ -10,8 +10,11 @@ class BuildController extends Controller
 {
     public function index()
     {
-        $builds = Build::with(['components'])->get();
-        return Inertia::render('Builds/Index', ['builds' => $builds]);
+        $builds = Build::with('components')->get();
+
+        return Inertia::render('Builds/Index', [
+            'builds' => $builds
+        ]);
     }
 
     public function create()
@@ -19,79 +22,84 @@ class BuildController extends Controller
         return Inertia::render('Builds/Create');
     }
 
-    public function store(Request $request)
-    {
-        $data = $request->validate([
-            'name'        => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'price'       => 'nullable|numeric',
-            // 'user_id'   => 'required|exists:users,id', // Active si besoin
-            'components'  => 'nullable|array',
-            'components.*.component_id' => 'required|exists:components,id',
-            'components.*.quantity'     => 'required|integer|min:1'
+public function store(Request $request)
+{
+    $data = $request->validate([
+        'name' => 'required|string',
+        'description' => 'nullable|string',
+        'imgUrl' => 'nullable|string',
+        'price' => 'nullable|numeric',
+        'components' => 'required|array',
+        'components.*.component_id' => 'required|integer|exists:components,id',
+        'components.*.type' => 'required|string'
+    ]);
+
+    $build = Build::create([
+        'name' => $data['name'],
+        'description' => $data['description'] ?? '',
+        'imgUrl' => $data['imgUrl'] ?? null,
+        'price' => $data['price'] ?? null,
+    ]);
+
+    foreach ($data['components'] as $component) {
+        $build->components()->attach($component['component_id'], [
+            'type' => $component['type']
         ]);
-
-        $build = Build::create([
-            'name'        => $data['name'],
-            'description' => $data['description'] ?? null,
-            'price'       => $data['price'] ?? null,
-            // 'user_id'   => $data['user_id'] ?? null,
-        ]);
-
-        // Ajoute les composants avec la quantité sur la table pivot
-        if (!empty($data['components'])) {
-            $syncData = [];
-            foreach ($data['components'] as $comp) {
-                $syncData[$comp['component_id']] = [
-                    'quantity' => $comp['quantity']
-                ];
-            }
-            $build->components()->attach($syncData);
-        }
-
-        return redirect()->route('builds.index');
     }
+
+    return response()->json($build->load('components'), 201);
+}
+
 
     public function show(Build $build)
     {
-        $build->load(['components']);
-        return Inertia::render('Builds/Show', ['build' => $build]);
+        $build->load('components');
+
+        return Inertia::render('Builds/Show', [
+            'build' => $build
+        ]);
     }
 
     public function edit(Build $build)
     {
-        $build->load(['components']);
-        return Inertia::render('Builds/Edit', ['build' => $build]);
+        $build->load('components');
+
+        return Inertia::render('Builds/Edit', [
+            'build' => $build
+        ]);
     }
 
     public function update(Request $request, Build $build)
     {
-        $data = $request->validate([
+        $rules = [
             'name'        => 'required|string|max:255',
             'description' => 'nullable|string',
             'price'       => 'nullable|numeric',
+            'img_url'     => 'nullable|string|max:255|url',
             'components'  => 'nullable|array',
-            'components.*.component_id' => 'required|exists:components,id',
-            'components.*.quantity'     => 'required|integer|min:1'
-        ]);
+        ];
+
+        if ($request->filled('components')) {
+            $rules['components.*.component_id'] = 'required|exists:components,id';
+            $rules['components.*.quantity']     = 'required|integer|min:1';
+        }
+
+        $data = $request->validate($rules);
 
         $build->update([
             'name'        => $data['name'],
             'description' => $data['description'] ?? null,
             'price'       => $data['price'] ?? null,
+            'img_url'     => $data['img_url'] ?? null,
         ]);
 
-        // Sync les composants et quantités
         if (!empty($data['components'])) {
-            $syncData = [];
-            foreach ($data['components'] as $comp) {
-                $syncData[$comp['component_id']] = [
-                    'quantity' => $comp['quantity']
-                ];
-            }
-            $build->components()->sync($syncData);
+            $build->components()->sync(
+                collect($data['components'])->mapWithKeys(fn ($comp) => [
+                    $comp['component_id'] => ['quantity' => $comp['quantity']]
+                ])->toArray()
+            );
         } else {
-            // Si plus de composants sélectionnés, on vide
             $build->components()->detach();
         }
 

@@ -10,10 +10,17 @@ class MotherboardController extends Controller
 {
     public function index()
     {
-        return response()->json(
-            Motherboard::with('brand')->get(),
-            Response::HTTP_OK
-        );
+        return Motherboard::with('component')->get()->map(function ($mb) {
+            return [
+                'id' => $mb->id,
+                'component_id' => $mb->component_id,
+                'name' => $mb->component->name,
+                'price' => $mb->component->price,
+                'img_url' => $mb->component->img_url,
+                'socket' => $mb->socket,
+                'chipset' => $mb->chipset,
+            ];
+        });
     }
 
     public function store(Request $request)

@@ -8,12 +8,15 @@ class Build extends Model
 {
     protected $fillable = [
         'name',
-        'user_id', // Retire si tu ne veux pas lier à un utilisateur
+        'user_id',
+        'img_url',
+        'description',
+        'price',
     ];
 
     public function components()
     {
-        return $this->belongsToMany(Component::class, 'build_components')
+        return $this->belongsToMany(Component::class, 'build_component')
             ->withPivot('quantity')
             ->withTimestamps();
     }

@@ -10,10 +10,17 @@ class PsuController extends Controller
 {
     public function index()
     {
-        return response()->json(
-            Psu::with('brand')->get(),
-            Response::HTTP_OK
-        );
+        return Psu::with('component')->get()->map(function ($psu) {
+            return [
+                'id' => $psu->id,
+                'component_id' => $psu->component_id,
+                'name' => $psu->component->name,
+                'price' => $psu->component->price,
+                'img_url' => $psu->component->img_url,
+                'wattage' => $psu->wattage,
+                'certification' => $psu->certification,
+            ];
+        });
     }
 
     public function store(Request $request)

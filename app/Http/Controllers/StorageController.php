@@ -2,66 +2,69 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Motherboard;
+use App\Models\Storage;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 
-class MotherboardController extends Controller
+class StorageController extends Controller
 {
-    public function index()
+public function index()
     {
-        return response()->json(
-            Motherboard::with('brand')->get(),
-            Response::HTTP_OK
-        );
+        return Storage::with('component')->get()->map(function ($s) {
+            return [
+                'id' => $s->id,
+                'component_id' => $s->component_id,
+                'name' => $s->component->name,
+                'price' => $s->component->price,
+                'img_url' => $s->component->img_url,
+                'type' => $s->type,
+                'capacity_gb' => $s->capacity_gb,
+            ];
+        });
     }
 
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'name'        => 'required|string|max:255',
-            'brand_id'    => 'required|exists:brands,id',
-            'socket'      => 'required|string|max:50',
-            'chipset'     => 'required|string|max:100',
-            'form_factor' => 'required|string|max:20',
-            'ram_type'    => 'required|string|max:10',
-            'max_ram'     => 'required|integer|min:1',
-            'price'       => 'required|numeric|min:0',
+            'name'         => 'required|string|max:255',
+            'brand_id'     => 'required|exists:brands,id',
+            'type'         => 'required|string|max:50',
+            'capacity_gb'  => 'required|integer|min:1',
+            'interface'    => 'required|string|max:50',
+            'price'        => 'required|numeric|min:0',
         ]);
 
-        $motherboard = Motherboard::create($validated);
+        $storage = Storage::create($validated);
 
-        return response()->json($motherboard, Response::HTTP_CREATED);
+        return response()->json($storage, Response::HTTP_CREATED);
     }
 
-    public function show(Motherboard $motherboard)
+    public function show(Storage $storage)
     {
-        $motherboard->load('brand');
+        $storage->load('brand');
 
-        return response()->json($motherboard, Response::HTTP_OK);
+        return response()->json($storage, Response::HTTP_OK);
     }
 
-    public function update(Request $request, Motherboard $motherboard)
+    public function update(Request $request, Storage $storage)
     {
         $validated = $request->validate([
-            'name'        => 'required|string|max:255',
-            'brand_id'    => 'required|exists:brands,id',
-            'socket'      => 'required|string|max:50',
-            'chipset'     => 'required|string|max:100',
-            'form_factor' => 'required|string|max:20',
-            'ram_type'    => 'required|string|max:10',
-            'max_ram'     => 'required|integer|min:1',
-            'price'       => 'required|numeric|min:0',
+            'name'         => 'required|string|max:255',
+            'brand_id'     => 'required|exists:brands,id',
+            'type'         => 'required|string|max:50',
+            'capacity_gb'  => 'required|integer|min:1',
+            'interface'    => 'required|string|max:50',
+            'price'        => 'required|numeric|min:0',
         ]);
 
-        $motherboard->update($validated);
+        $storage->update($validated);
 
-        return response()->json($motherboard, Response::HTTP_OK);
+        return response()->json($storage, Response::HTTP_OK);
     }
 
-    public function destroy(Motherboard $motherboard)
+    public function destroy(Storage $storage)
     {
-        $motherboard->delete();
+        $storage->delete();
 
         return response()->json(null, Response::HTTP_NO_CONTENT);
     }

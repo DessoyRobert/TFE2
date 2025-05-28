@@ -10,10 +10,18 @@ class CpuController extends Controller
 {
     public function index()
     {
-        return response()->json(
-            Cpu::with('brand')->get(),
-            Response::HTTP_OK
-        );
+        return Cpu::with('component')->get()->map(function ($cpu) {
+            return [
+                'id' => $cpu->id,
+                'component_id' => $cpu->component_id,
+                'name' => $cpu->component->name,
+                'price' => $cpu->component->price,
+                'img_url' => $cpu->component->img_url,
+                'socket' => $cpu->socket,
+                'core_count' => $cpu->core_count,
+                'thread_count' => $cpu->thread_count,
+            ];
+        });
     }
 
     public function store(Request $request)

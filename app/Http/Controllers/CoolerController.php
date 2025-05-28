@@ -9,9 +9,19 @@ class CoolerController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+        public function index()
     {
-        //
+        return Cooler::with('component')->get()->map(function ($cooler) {
+            return [
+                'id' => $cooler->id,
+                'component_id' => $cooler->component_id,
+                'name' => $cooler->component->name,
+                'price' => $cooler->component->price,
+                'img_url' => $cooler->component->img_url,
+                'type' => $cooler->type,
+                'fan_count' => $cooler->fan_count,
+            ];
+        });
     }
 
     /**
