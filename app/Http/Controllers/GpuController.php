@@ -8,55 +8,157 @@ use Illuminate\Http\Response;
 
 class GpuController extends Controller
 {
+    // GET /api/gpus
     public function index()
     {
-        return response()->json(
-            Gpu::with('brand')->get(),
-            Response::HTTP_OK
-        );
+        return Gpu::with('component.brand')->get()->map(function ($gpu) {
+            return [
+                'id' => $gpu->id,
+                'component_id' => $gpu->component_id,
+                'name' => $gpu->component->name ?? '',
+                'brand' => $gpu->component->brand->name ?? '',
+                'price' => $gpu->component->price ?? '',
+                'img_url' => $gpu->component->img_url ?? '',
+                'chipset' => $gpu->chipset,
+                'memory' => $gpu->memory,
+                'base_clock' => $gpu->base_clock ?? null,
+                'boost_clock' => $gpu->boost_clock ?? null,
+                'tdp' => $gpu->tdp ?? null,
+            ];
+        })->values();
     }
 
+    // POST /api/gpus
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'name'     => 'required|string|max:255',
-            'brand_id' => 'required|exists:brands,id',
-            'chipset'  => 'required|string|max:255',
-            'vram'     => 'required|integer|min:1',
-            'tdp'      => 'required|integer|min:0',
-            'price'    => 'required|numeric|min:0',
+            // Champs du composant principal
+            'name'              => 'required|string|max:255',
+            'brand_id'          => 'required|exists:brands,id',
+            'component_type_id' => 'required|exists:component_types,id',
+            'price'             => 'nullable|numeric|min:0',
+            'img_url'           => 'nullable|string',
+            // Champs spécifiques GPU
+            'chipset'      => 'required|string|max:255',
+            'memory'       => 'required|string|max:20',
+            'base_clock'   => 'nullable|numeric|min:0',
+            'boost_clock'  => 'nullable|numeric|min:0',
+            'tdp'          => 'nullable|integer|min:0',
         ]);
 
-        $gpu = Gpu::create($validated);
+        // Création du Component principal
+        $component = \App\Models\Component::create([
+            'name' => $validated['name'],
+            'brand_id' => $validated['brand_id'],
+            'component_type_id' => $validated['component_type_id'],
+            'price' => $validated['price'] ?? null,
+            'img_url' => $validated['img_url'] ?? null,
+        ]);
 
-        return response()->json($gpu, Response::HTTP_CREATED);
+        // Création du GPU spécifique
+        $gpu = Gpu::create([
+            'component_id' => $component->id,
+            'chipset'      => $validated['chipset'],
+            'memory'       => $validated['memory'],
+            'base_clock'   => $validated['base_clock'] ?? null,
+            'boost_clock'  => $validated['boost_clock'] ?? null,
+            'tdp'          => $validated['tdp'] ?? null,
+        ]);
+
+        $gpu->load('component.brand');
+
+        return response()->json([
+            'id' => $gpu->id,
+            'component_id' => $gpu->component_id,
+            'name' => $gpu->component->name ?? '',
+            'brand' => $gpu->component->brand->name ?? '',
+            'price' => $gpu->component->price ?? '',
+            'img_url' => $gpu->component->img_url ?? '',
+            'chipset' => $gpu->chipset,
+            'memory' => $gpu->memory,
+            'base_clock' => $gpu->base_clock ?? null,
+            'boost_clock' => $gpu->boost_clock ?? null,
+            'tdp' => $gpu->tdp ?? null,
+        ], Response::HTTP_CREATED);
     }
 
+    // GET /api/gpus/{gpu}
     public function show(Gpu $gpu)
     {
-        $gpu->load('brand');
+        $gpu->load('component.brand');
 
-        return response()->json($gpu, Response::HTTP_OK);
+        return response()->json([
+            'id' => $gpu->id,
+            'component_id' => $gpu->component_id,
+            'name' => $gpu->component->name ?? '',
+            'brand' => $gpu->component->brand->name ?? '',
+            'price' => $gpu->component->price ?? '',
+            'img_url' => $gpu->component->img_url ?? '',
+            'chipset' => $gpu->chipset,
+            'memory' => $gpu->memory,
+            'base_clock' => $gpu->base_clock ?? null,
+            'boost_clock' => $gpu->boost_clock ?? null,
+            'tdp' => $gpu->tdp ?? null,
+        ], Response::HTTP_OK);
     }
 
+    // PUT/PATCH /api/gpus/{gpu}
     public function update(Request $request, Gpu $gpu)
     {
         $validated = $request->validate([
-            'name'     => 'required|string|max:255',
-            'brand_id' => 'required|exists:brands,id',
-            'chipset'  => 'required|string|max:255',
-            'vram'     => 'required|integer|min:1',
-            'tdp'      => 'required|integer|min:0',
-            'price'    => 'required|numeric|min:0',
+            // Champs du composant principal
+            'name'              => 'required|string|max:255',
+            'brand_id'          => 'required|exists:brands,id',
+            'component_type_id' => 'required|exists:component_types,id',
+            'price'             => 'nullable|numeric|min:0',
+            'img_url'           => 'nullable|string',
+            // Champs spécifiques GPU
+            'chipset'      => 'required|string|max:255',
+            'memory'       => 'required|string|max:20',
+            'base_clock'   => 'nullable|numeric|min:0',
+            'boost_clock'  => 'nullable|numeric|min:0',
+            'tdp'          => 'nullable|integer|min:0',
         ]);
 
-        $gpu->update($validated);
+        // Update du composant principal
+        $gpu->component->update([
+            'name' => $validated['name'],
+            'brand_id' => $validated['brand_id'],
+            'component_type_id' => $validated['component_type_id'],
+            'price' => $validated['price'] ?? null,
+            'img_url' => $validated['img_url'] ?? null,
+        ]);
 
-        return response()->json($gpu, Response::HTTP_OK);
+        // Update du GPU
+        $gpu->update([
+            'chipset'      => $validated['chipset'],
+            'memory'       => $validated['memory'],
+            'base_clock'   => $validated['base_clock'] ?? null,
+            'boost_clock'  => $validated['boost_clock'] ?? null,
+            'tdp'          => $validated['tdp'] ?? null,
+        ]);
+
+        $gpu->load('component.brand');
+
+        return response()->json([
+            'id' => $gpu->id,
+            'component_id' => $gpu->component_id,
+            'name' => $gpu->component->name ?? '',
+            'brand' => $gpu->component->brand->name ?? '',
+            'price' => $gpu->component->price ?? '',
+            'img_url' => $gpu->component->img_url ?? '',
+            'chipset' => $gpu->chipset,
+            'memory' => $gpu->memory,
+            'base_clock' => $gpu->base_clock ?? null,
+            'boost_clock' => $gpu->boost_clock ?? null,
+            'tdp' => $gpu->tdp ?? null,
+        ], Response::HTTP_OK);
     }
 
+    // DELETE /api/gpus/{gpu}
     public function destroy(Gpu $gpu)
     {
+        $gpu->component->delete();
         $gpu->delete();
 
         return response()->json(null, Response::HTTP_NO_CONTENT);

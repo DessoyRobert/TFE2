@@ -1,7 +1,14 @@
+<script setup>
+const name = defineModel('name')
+const imgUrl = defineModel('imgUrl')
+const description = defineModel('description')
+const props = defineProps({ autoPrice: { type: Number, default: 0 } })
+</script>
+
 <template>
   <div class="flex flex-col space-y-2">
     <input
-      v-model="buildName"
+      v-model="name"
       type="text"
       placeholder="Nom du build"
       class="border px-2 py-1 rounded"
@@ -18,18 +25,11 @@
       class="border px-2 py-1 rounded"
     ></textarea>
     <input
-      v-model.number="price"
       type="number"
-      placeholder="Prix (optionnel)"
+      :value="autoPrice"
+      readonly
       class="border px-2 py-1 rounded"
+      placeholder="Prix (auto)"
     />
   </div>
 </template>
-
-<script setup>
-const buildName = defineModel('buildName')
-const imgUrl = defineModel('imgUrl')
-const description = defineModel('description')
-const price = defineModel('price')
-</script>
-

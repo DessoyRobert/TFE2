@@ -10,16 +10,19 @@ class CaseModelController extends Controller
 {
     public function index()
     {
-        return CaseModel::with('component')->get()->map(function ($case) {
+        return CaseModel::with('component.brand')->get()->map(function ($case) {
             return [
                 'id' => $case->id,
                 'component_id' => $case->component_id,
-                'name' => $case->component->name,
-                'price' => $case->component->price,
-                'img_url' => $case->component->img_url,
+                'name' => $case->component->name ?? '',
+                'brand' => $case->component->brand->name ?? '',
+                'price' => $case->component->price ?? '',
+                'img_url' => $case->component->img_url ?? '',
                 'form_factor' => $case->form_factor,
+                'max_gpu_length' => $case->max_gpu_length,
+                'max_cooler_height' => $case->max_cooler_height,
             ];
-        });
+        })->values();
     }
 
     public function store(Request $request)
@@ -40,9 +43,19 @@ class CaseModelController extends Controller
 
     public function show(CaseModel $case)
     {
-        $case->load('brand');
+        $case->load('component.brand');
 
-        return response()->json($case, Response::HTTP_OK);
+        return response()->json([
+            'id' => $case->id,
+            'component_id' => $case->component_id,
+            'name' => $case->component->name ?? '',
+            'brand' => $case->component->brand->name ?? '',
+            'price' => $case->component->price ?? '',
+            'img_url' => $case->component->img_url ?? '',
+            'form_factor' => $case->form_factor,
+            'max_gpu_length' => $case->max_gpu_length,
+            'max_cooler_height' => $case->max_cooler_height,
+        ], Response::HTTP_OK);
     }
 
     public function update(Request $request, CaseModel $case)

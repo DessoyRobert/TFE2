@@ -11,40 +11,46 @@ class ComponentController extends Controller
     // GET /api/components
     public function index()
     {
-        return Component::all();
-        //$components = Component::with(['type', 'cpu', 'gpu', 'ram', 'motherboard', 'storage', 'psu', 'cooler', 'casemodel'])->get();
-        //return response()->json($components);
+        // On charge la brand (et type si tu veux)
+        return Component::with(['brand', 'type'])->get()->map(function ($component) {
+            return [
+                'id' => $component->id,
+                'name' => $component->name,
+                'brand' => $component->brand->name ?? '',
+                'type' => $component->type->name ?? '',
+                'price' => $component->price,
+                'img_url' => $component->img_url,
+                'description' => $component->description,
+                'release_year' => $component->release_year,
+                'ean' => $component->ean,
+                // Ajoute ici d'autres champs spécifiques si tu veux
+            ];
+        })->values();
     }
 
     // POST /api/components
     public function store(Request $request)
     {
         $data = $request->validate([
-        'name' => 'required',
-        'brand_id' => 'required|exists:brands,id',
-        'component_type_id' => 'required|exists:component_types,id',
-        'price' => 'nullable|numeric',
-        'img_url' => 'nullable|string',
-        'description' => 'nullable|string',
-        'release_year' => 'nullable|integer',
-        'ean' => 'nullable|string'
-    ]);
+            'name' => 'required',
+            'brand_id' => 'required|exists:brands,id',
+            'component_type_id' => 'required|exists:component_types,id',
+            'price' => 'nullable|numeric',
+            'img_url' => 'nullable|string',
+            'description' => 'nullable|string',
+            'release_year' => 'nullable|integer',
+            'ean' => 'nullable|string'
+        ]);
 
         $component = Component::create($data);
 
-        // Chercher le nom du type via la relation
-        $typeName = $component->type->name;
-
-        // Optionnel : log ou traiter les specs spécifiques
-        // (ajoute ici la logique pour les sous-tables comme cpu/gpu/ram si tu veux !)
-
-        return response()->json($component, 201);
+        return response()->json($component->load(['brand', 'type']), 201);
     }
 
     // GET /api/components/{id}
     public function show($id)
     {
-        $component = Component::with(['type', 'cpu', 'gpu', 'ram', 'motherboard', 'storage', 'psu', 'cooler', 'casemodel'])->findOrFail($id);
+        $component = Component::with(['brand', 'type', 'cpu', 'gpu', 'ram', 'motherboard', 'storage', 'psu', 'cooler', 'casemodel'])->findOrFail($id);
         return response()->json($component);
     }
 
@@ -53,19 +59,19 @@ class ComponentController extends Controller
     {
         $component = Component::findOrFail($id);
         $data = $request->validate([
-        'name' => 'required',
-        'brand_id' => 'required|exists:brands,id',
-        'component_type_id' => 'required|exists:component_types,id',
-        'price' => 'nullable|numeric',
-        'img_url' => 'nullable|string',
-        'description' => 'nullable|string',
-        'release_year' => 'nullable|integer',
-        'ean' => 'nullable|string'
-    ]);
+            'name' => 'required',
+            'brand_id' => 'required|exists:brands,id',
+            'component_type_id' => 'required|exists:component_types,id',
+            'price' => 'nullable|numeric',
+            'img_url' => 'nullable|string',
+            'description' => 'nullable|string',
+            'release_year' => 'nullable|integer',
+            'ean' => 'nullable|string'
+        ]);
 
         $component->update($data);
 
-        return response()->json($component);
+        return response()->json($component->load(['brand', 'type']));
     }
 
     // DELETE /api/components/{id}

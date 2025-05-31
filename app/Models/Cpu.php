@@ -13,5 +13,11 @@ class Cpu extends Component
         'base_clock', 'boost_clock', 'tdp', 'integrated_graphics',
     ];
 
+
+    public function component()
+    {
+    return $this->belongsTo(Component::class);
+    }
+
 }
 

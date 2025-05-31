@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import axios from 'axios'
 import { router } from '@inertiajs/vue3'
 
@@ -10,7 +10,6 @@ const build = ref({
   name: '',
   description: '',
   imgUrl: '',
-  price: null,
   cpu: null,
   gpu: null,
   ram: null,
@@ -32,6 +31,13 @@ const componentTypes = [
   { key: 'case_model', label: 'Boîtier', endpoint: '/api/case-models' },
 ]
 
+const autoPrice = computed(() => {
+  return componentTypes.reduce((total, t) => {
+    const comp = build.value[t.key]
+    return total + (comp?.price ? Number(comp.price) : 0)
+  }, 0)
+})
+
 const selectorKey = ref(null)
 
 function handleSelect(key) {
@@ -39,27 +45,30 @@ function handleSelect(key) {
 }
 
 async function submitBuild() {
+  // Prépare uniquement le payload nécessaire pour l'API
   const payload = {
     name: build.value.name,
     description: build.value.description,
     imgUrl: build.value.imgUrl,
-    price: build.value.price,
+    price: autoPrice.value,
     components: [],
   }
 
+  // Ajoute chaque component_id sélectionné
   for (const type of componentTypes) {
     const comp = build.value[type.key]
-    if (comp && comp.id) {
-      payload.components.push({
-        component_id: comp.id,
-        type: type.key,
-      })
+    // Check sur component_id (le vrai ID global)
+    if (comp && comp.component_id) {
+      payload.components.push({ component_id: comp.component_id })
     }
   }
 
+  // Debug : Affiche le vrai payload envoyé
+  console.log('Payload build avant submit:', payload)
+
   try {
     await axios.post('/api/builds', payload)
-    router.visit('/builds')
+    router.visit('/')
   } catch (error) {
     console.error('Erreur lors de la création du build:', error)
     alert('Erreur lors de la création du build.')
@@ -75,7 +84,7 @@ async function submitBuild() {
         v-model:name="build.name"
         v-model:description="build.description"
         v-model:imgUrl="build.imgUrl"
-        v-model:price="build.price"
+        :auto-price="autoPrice"
       />
     </div>
 
@@ -95,7 +104,6 @@ async function submitBuild() {
             class="border-b odd:bg-lightgray even:bg-white"
           >
             <td class="px-4 py-3 font-medium">{{ type.label }}</td>
-
             <td class="px-4 py-3 flex items-center gap-3">
               <span class="text-darknavy font-medium">
                 {{ build[type.key]?.name ?? 'Aucun sélectionné' }}
@@ -107,7 +115,6 @@ async function submitBuild() {
                 {{ build[type.key] ? 'Changer' : '+ Ajouter' }}
               </button>
             </td>
-
             <td class="px-4 py-3 text-darkgray">
               {{
                 build[type.key]?.price !== undefined

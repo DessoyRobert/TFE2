@@ -8,74 +8,81 @@ use Inertia\Inertia;
 
 class BuildController extends Controller
 {
+    // GET /api/builds
     public function index()
     {
-        $builds = Build::with('components')->get();
+        // Charge chaque build avec ses components ET la marque de chaque component
+        $builds = Build::with('components.brand')->get();
 
         return Inertia::render('Builds/Index', [
             'builds' => $builds
         ]);
     }
 
+    // GET /api/builds/create
     public function create()
     {
         return Inertia::render('Builds/Create');
     }
 
-public function store(Request $request)
-{
-    $data = $request->validate([
-        'name' => 'required|string',
-        'description' => 'nullable|string',
-        'imgUrl' => 'nullable|string',
-        'price' => 'nullable|numeric',
-        'components' => 'required|array',
-        'components.*.component_id' => 'required|integer|exists:components,id',
-        'components.*.type' => 'required|string'
-    ]);
-
-    $build = Build::create([
-        'name' => $data['name'],
-        'description' => $data['description'] ?? '',
-        'imgUrl' => $data['imgUrl'] ?? null,
-        'price' => $data['price'] ?? null,
-    ]);
-
-    foreach ($data['components'] as $component) {
-        $build->components()->attach($component['component_id'], [
-            'type' => $component['type']
+    // POST /api/builds
+    public function store(Request $request)
+    {  
+        $data = $request->validate([
+            'name' => 'required|string',
+            'description' => 'nullable|string',
+            'imgUrl' => 'nullable|string',
+            'price' => 'nullable|numeric',
+            'components' => 'required|array',
+            'components.*.component_id' => 'required|integer|exists:components,id',
+            // plus besoin de 'components.*.type'
         ]);
+
+        // On crée le build
+        $build = Build::create([
+            'name' => $data['name'],
+            'description' => $data['description'] ?? '',
+            'imgUrl' => $data['imgUrl'] ?? null,
+            'price' => $data['price'] ?? null,
+        ]);
+
+        // On attache les composants (seulement l'id du component)
+        foreach ($data['components'] as $component) {
+            $build->components()->attach($component['component_id']);
+        }
+
+        return response()->json($build->load('components'), 201);
     }
 
-    return response()->json($build->load('components'), 201);
-}
 
+        // GET /api/builds/{build}
+        public function show(Build $build)
+        {
+            $build->load('components.brand');
 
-    public function show(Build $build)
-    {
-        $build->load('components');
+            return Inertia::render('Builds/Show', [
+                'build' => $build
+            ]);
+        }
 
-        return Inertia::render('Builds/Show', [
-            'build' => $build
-        ]);
-    }
+        // GET /api/builds/{build}/edit
+        public function edit(Build $build)
+        {
+            $build->load('components.brand');
 
-    public function edit(Build $build)
-    {
-        $build->load('components');
+            return Inertia::render('Builds/Edit', [
+                'build' => $build
+            ]);
+        }
 
-        return Inertia::render('Builds/Edit', [
-            'build' => $build
-        ]);
-    }
-
+    // PUT/PATCH /api/builds/{build}
     public function update(Request $request, Build $build)
     {
         $rules = [
             'name'        => 'required|string|max:255',
             'description' => 'nullable|string',
             'price'       => 'nullable|numeric',
-            'img_url'     => 'nullable|string|max:255|url',
+            'img_url'     => 'nullable|string|max:255',
             'components'  => 'nullable|array',
         ];
 
@@ -106,6 +113,7 @@ public function store(Request $request)
         return redirect()->route('builds.index');
     }
 
+    // DELETE /api/builds/{build}
     public function destroy(Build $build)
     {
         $build->components()->detach();

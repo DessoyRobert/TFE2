@@ -18,10 +18,10 @@ class CategoryController extends Controller
     // GET /api/categories/{id}
     public function show($id)
     {
-        // Avec les components associés si besoin
-        $category = Category::with('components')->findOrFail($id);
+        $category = Category::with('components.brand')->findOrFail($id);
         return response()->json($category);
     }
+
 
     // POST /api/categories
     public function store(Request $request)

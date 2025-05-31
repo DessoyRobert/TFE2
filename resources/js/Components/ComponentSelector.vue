@@ -52,11 +52,12 @@ const filteredItems = computed(() =>
 async function fetchItems() {
   try {
     const res = await axios.get(props.endpoint)
-    items.value = res.data
+    items.value = Array.isArray(res.data) ? res.data : (res.data.data ?? [])
   } catch (error) {
     console.error(`Erreur de chargement depuis ${props.endpoint}`, error)
   }
 }
+
 
 function selectItem(item) {
   emit('select', item)
