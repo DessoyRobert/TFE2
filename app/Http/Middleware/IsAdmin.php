@@ -16,7 +16,19 @@ class IsAdmin
     public function handle($request, Closure $next)
     {
         if (!auth()->check() || auth()->user()->role !== 'admin') {
-            abort(403);
+            //Envoie l'objet auth et tout le reste en html, avec un success
+            $auth = [
+                'user' => auth()->user(),
+                'is_admin' => auth()->check() && auth()->user()->role === 'admin',
+            ];
+            // On peut utiliser la méthode success pour renvoyer une réponse JSON
+            return response()->json([
+                'message' => 'Unauthorized',
+                'auth' => $auth,
+                'role' => auth()->user() ? auth()->user()->role : 'guest',
+            ], Response::HTTP_FORBIDDEN); // 403 Forbidden
+            // Ou si tu veux renvoyer un 404 Not Found
+            success(404, auth);
     }
 
     return $next($request);

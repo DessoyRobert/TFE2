@@ -5,10 +5,6 @@ use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use App\Http\Middleware\IsAdmin;
-use App\Http\Controllers\BuildController;
-use App\Http\Controllers\ComponentController;
-Route::resource('builds', BuildController::class);
-Route::resource('components', ComponentController::class);
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -30,7 +26,7 @@ Route::middleware('auth')->group(function () {
 });
 
 
-Route::middleware(['auth', 'is_admin'])->prefix('admin')->name('admin.')->group(function () {
+Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/dashboard', function () {
         return Inertia::render('Admin/Dashboard');
     })->name('dashboard');

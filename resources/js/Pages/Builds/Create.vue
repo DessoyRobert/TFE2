@@ -133,7 +133,7 @@ watch(selectedComponentIds, (ids) => {
                 {{ build[type.key]?.name ?? 'Aucun sélectionné' }}
               </span>
               <button
-                class="bg-primary hover:bg-cyan text-white text-xs px-3 py-1 rounded-xl"
+                class="bg-primary hover:bg-cyan text-xs px-3 py-1 rounded-xl"
                 @click="handleSelect(type.key)"
               >
                 {{ build[type.key] ? 'Changer' : '+ Ajouter' }}

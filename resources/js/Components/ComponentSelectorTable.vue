@@ -1,4 +1,5 @@
 <template>
+  {{ props.endpoint }}
   <div>
     <table v-if="components.length" class="w-full text-sm">
       <thead class="bg-lightgray text-darknavy">
@@ -18,7 +19,7 @@
           <td class="px-4 py-3">{{ component.price }} €</td>
           <td class="px-4 py-3">
             <button
-              class="bg-primary hover:bg-cyan text-white px-3 py-1 rounded-xl text-xs"
+              class="bg-primary hover:bg-cyan px-3 py-1 rounded-xl text-xs"
               @click="$emit('select', component)"
             >
               Sélectionner
@@ -40,7 +41,6 @@ const props = defineProps({
 const emit = defineEmits(['select'])
 
 const components = ref([])
-
 const fetchComponents = async () => {
   try {
     const res = await fetch(props.endpoint)

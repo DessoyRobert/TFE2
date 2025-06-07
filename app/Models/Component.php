@@ -31,7 +31,7 @@ class Component extends Model
         return $this->belongsTo(Category::class);
     }
     // Relations spécialisées (ok à garder)
-    public function cpu()         { return $this->hasOne(Cpu::class); }
+    public function cpu() { return $this->hasOne(Cpu::class); }
     public function gpu()         { return $this->hasOne(Gpu::class); }
     public function ram()         { return $this->hasOne(Ram::class); }
     public function motherboard() { return $this->hasOne(Motherboard::class); }
@@ -46,6 +46,4 @@ class Component extends Model
         return $this->belongsToMany(Build::class, 'build_component')
             ->withTimestamps();
     }
-    
-
 }

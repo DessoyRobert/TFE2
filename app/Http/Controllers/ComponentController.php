@@ -81,4 +81,8 @@ class ComponentController extends Controller
         $component->delete();
         return response()->json(null, 204);
     }
+    public function create()
+    {
+        return Inertia::render('Components/Create');
+    }
 }

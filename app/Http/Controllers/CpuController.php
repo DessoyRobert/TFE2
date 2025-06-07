@@ -11,7 +11,7 @@ class CpuController extends Controller
     // GET /api/cpus
     public function index()
     {
-        return Cpu::with('component.brand')->get()->map(function ($cpu) {
+        return Cpu::with('component')->get()->map(function ($cpu) {
             return [
                 'id' => $cpu->id,
                 'component_id' => $cpu->component_id,
