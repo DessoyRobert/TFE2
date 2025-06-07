@@ -5,6 +5,10 @@ use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use App\Http\Middleware\IsAdmin;
+use App\Http\Controllers\BuildController;
+use App\Http\Controllers\ComponentController;
+Route::resource('builds', BuildController::class);
+Route::resource('components', ComponentController::class);
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
