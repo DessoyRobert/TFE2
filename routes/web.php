@@ -4,12 +4,7 @@ use App\Http\Controllers\ProfileController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
-use App\Http\Controllers\BuildController;
-
-
-
-Route::resource('builds', BuildController::class);
-
+use App\Http\Middleware\IsAdmin;
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -30,4 +25,13 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
+
+Route::middleware(['auth', 'is_admin'])->prefix('admin')->name('admin.')->group(function () {
+    Route::get('/dashboard', function () {
+        return Inertia::render('Admin/Dashboard');
+    })->name('dashboard');
+});
 require __DIR__.'/auth.php';
+
+
+

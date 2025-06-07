@@ -3,34 +3,49 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
-use App\Models\Component;
-use App\Models\Storage;
-use App\Models\Brand;
-use App\Models\ComponentType;
-use App\Models\Category;
+use Illuminate\Support\Facades\DB;
 
 class StorageSeeder extends Seeder
 {
-    public function run()
+    public function run(): void
     {
-        $brandId = Brand::where('name', 'Samsung')->first()?->id;
-        $typeId = ComponentType::where('name', 'storage')->first()?->id;
-        $categoryId = Category::where('name', 'Stockage')->first()?->id;
+        $now = now();
+        $typeId = DB::table('component_types')->where('name', 'storage')->value('id');
+        $categoryId = DB::table('categories')->where('name', 'like', '%storage%')->value('id');
 
-        $component = Component::create([
-            'name' => 'Samsung 980 PRO 1TB NVMe',
-            'brand_id' => $brandId,
-            'component_type_id' => $typeId,
-            'category_id' => $categoryId,
-            'price' => 129.99,
-            'description' => 'SSD NVMe Gen4 ultra rapide.',
-        ]);
+        $storages = [
+            ['Samsung 970 EVO Plus', 'NVMe', 1000, 'PCIe Gen3 x4', 'Samsung'],
+            ['WD Blue SN570', 'NVMe', 500, 'PCIe Gen3 x4', 'Western Digital'],
+            ['Crucial MX500', 'SSD', 1000, 'SATA III', 'Crucial'],
+            ['Seagate Barracuda', 'HDD', 2000, 'SATA III', 'Seagate'],
+            ['WD Black SN850X', 'NVMe', 2000, 'PCIe Gen4 x4', 'Western Digital'],
+            ['Kingston A400', 'SSD', 480, 'SATA III', 'Kingston'],
+            ['Toshiba P300', 'HDD', 1000, 'SATA III', 'Toshiba'],
+            ['ADATA XPG SX8200 Pro', 'NVMe', 1000, 'PCIe Gen3 x4', 'ADATA'],
+            ['Samsung 870 QVO', 'SSD', 2000, 'SATA III', 'Samsung'],
+            ['Seagate FireCuda 530', 'NVMe', 1000, 'PCIe Gen4 x4', 'Seagate'],
+        ];
 
-        Storage::create([
-            'component_id' => $component->id,
-            'type'         => 'NVMe',
-            'capacity_gb'  => 1024,
-            'interface'    => 'PCIe 4.0 x4',
-        ]);
+        foreach ($storages as [$name, $type, $capacity, $interface, $brandName]) {
+            $brandId = DB::table('brands')->where('name', 'like', "%$brandName%")->value('id') ?? 1;
+
+            $componentId = DB::table('components')->insertGetId([
+                'name' => $name,
+                'component_type_id' => $typeId,
+                'brand_id' => $brandId,
+                'category_id' => $categoryId,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+
+            DB::table('storages')->insert([
+                'component_id' => $componentId,
+                'type' => $type,
+                'capacity_gb' => $capacity,
+                'interface' => $interface,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+        }
     }
 }

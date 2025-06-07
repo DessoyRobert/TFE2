@@ -26,6 +26,7 @@ public function run()
         PsuSeeder::class,
         CoolerSeeder::class,
         CaseSeeder::class,
+        CompatibilityRuleSeeder::class,
            ]);
     // Create a default user
         User::factory()->create([

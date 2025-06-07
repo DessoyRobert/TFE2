@@ -9,15 +9,19 @@ use Inertia\Inertia;
 class BuildController extends Controller
 {
     // GET /api/builds
-    public function index()
+    public function index(Request $request)
     {
-        // Charge chaque build avec ses components ET la marque de chaque component
-        $builds = Build::with('components.brand')->get();
+        $search = $request->input('search');
+        $builds = Build::with('components.brand')
+            ->when($search, fn($q) => $q->where('name', 'ILIKE', "%$search%"))
+            ->get();
 
         return Inertia::render('Builds/Index', [
-            'builds' => $builds
+            'builds' => $builds,
+            'isAdmin' => auth()->check() && auth()->user()->role === 'admin',
         ]);
     }
+
 
     // GET /api/builds/create
     public function create()

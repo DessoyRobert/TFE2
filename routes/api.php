@@ -15,10 +15,13 @@ use App\Http\Controllers\StorageController;
 use App\Http\Controllers\PsuController;
 use App\Http\Controllers\CoolerController;
 use App\Http\Controllers\CaseModelController;
-use App\Http\Controllers\ImageController;
+use App\Http\Controllers\Api\BuildValidatorController;
+use App\Http\Controllers\Api\BuildValidationTempController;
+//use App\Http\Controllers\ImageController;
 
 // Routes API REST (préfères ces routes pour ton front en Vue.js/Inertia)
-
+Route::get('/builds/{build}/validate', BuildValidatorController::class);
+Route::post('/builds/validate-temp', BuildValidationTempController::class);
 // Composants spécifiques
 Route::apiResource('cpus', CpuController::class);
 Route::apiResource('gpus', GpuController::class);
@@ -40,7 +43,7 @@ Route::apiResource('categories', CategoryController::class);
 Route::apiResource('builds', BuildController::class);
 
 // Images
-Route::apiResource('images', ImageController::class);
+//Route::apiResource('images', ImageController::class);
 
 // (optionnel) Middleware d’authentification API pour certaines routes
 // Route::middleware('auth:sanctum')->group(function () {
