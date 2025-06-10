@@ -1,15 +1,22 @@
 <script setup>
+// Imports Vue
 import { ref, computed, watch } from 'vue'
 import axios from 'axios'
-import { router } from '@inertiajs/vue3'
-import { useBuildValidatorStore } from '@/stores/useBuildValidatorStore' // ⬅️ AJOUT
 
+// Inertia router (navigation SPA)
+import { router } from '@inertiajs/vue3'
+
+// Pinia store pour les validations dynamiques
+import { useBuildValidatorStore } from '@/stores/useBuildValidatorStore'
+
+// Composants internes
 import BuildFormFields from '@/Components/BuildFormFields.vue'
 import ComponentSelectorTable from '@/Components/ComponentSelectorTable.vue'
 
-// --- Store Pinia pour validation PCBuilder ---
-const validatorStore = useBuildValidatorStore() // ⬅️ AJOUT
+// Store de validation
+const validatorStore = useBuildValidatorStore()
 
+// Structure du build en cours de création
 const build = ref({
   name: '',
   description: '',
@@ -24,6 +31,7 @@ const build = ref({
   case_model: null,
 })
 
+// Définition des types de composants
 const componentTypes = [
   { key: 'cpu', label: 'Processeur', endpoint: '/api/cpus' },
   { key: 'gpu', label: 'Carte graphique', endpoint: '/api/gpus' },
@@ -35,6 +43,7 @@ const componentTypes = [
   { key: 'case_model', label: 'Boîtier', endpoint: '/api/case-models' },
 ]
 
+// Calcul automatique du prix total du build
 const autoPrice = computed(() => {
   return componentTypes.reduce((total, t) => {
     const comp = build.value[t.key]
@@ -42,12 +51,14 @@ const autoPrice = computed(() => {
   }, 0)
 })
 
+// Gestion de l'ouverture/fermeture du sélecteur de composants
 const selectorKey = ref(null)
 
 function handleSelect(key) {
   selectorKey.value = selectorKey.value === key ? null : key
 }
 
+// Envoi du build via l’API
 async function submitBuild() {
   const payload = {
     name: build.value.name,
@@ -64,8 +75,6 @@ async function submitBuild() {
     }
   }
 
-  console.log('Payload build avant submit:', payload)
-
   try {
     await axios.post('/api/builds', payload)
     router.visit('/')
@@ -75,7 +84,7 @@ async function submitBuild() {
   }
 }
 
-// --- Validation dynamique (mode PCPartPicker) ---
+// Validation dynamique (via store)
 const selectedComponentIds = computed(() =>
   componentTypes
     .map(type => build.value[type.key]?.component_id)
@@ -92,9 +101,9 @@ watch(selectedComponentIds, (ids) => {
 })
 </script>
 
-
 <template>
   <div class="max-w-6xl mx-auto px-4 py-10 space-y-10">
+    <!-- Informations générales -->
     <div class="bg-white p-6 rounded-xl shadow-md border space-y-4">
       <h1 class="text-2xl font-bold text-darknavy">Créer un build</h1>
       <BuildFormFields
@@ -104,14 +113,17 @@ watch(selectedComponentIds, (ids) => {
         :auto-price="autoPrice"
       />
     </div>
-    <div v-if="validatorStore.validating" class="text-gray-600 py-2">Validation en cours...</div>
-      <ul v-if="validatorStore.errors.length" class="bg-red-100 text-red-800 rounded-xl p-3 my-2">
-        <li v-for="(err, i) in validatorStore.errors" :key="i">❌ {{ err }}</li>
-      </ul>
-      <ul v-if="validatorStore.warnings.length" class="bg-yellow-100 text-yellow-800 rounded-xl p-3 my-2">
-        <li v-for="(warn, i) in validatorStore.warnings" :key="i">⚠️ {{ warn }}</li>
-      </ul>
 
+    <!-- Résultats des validations -->
+    <div v-if="validatorStore.validating" class="text-gray-600 py-2">Validation en cours...</div>
+    <ul v-if="validatorStore.errors.length" class="bg-red-100 text-red-800 rounded-xl p-3 my-2">
+      <li v-for="(err, i) in validatorStore.errors" :key="i">Erreur : {{ err }}</li>
+    </ul>
+    <ul v-if="validatorStore.warnings.length" class="bg-yellow-100 text-yellow-800 rounded-xl p-3 my-2">
+      <li v-for="(warn, i) in validatorStore.warnings" :key="i">Avertissement : {{ warn }}</li>
+    </ul>
+
+    <!-- Tableau des composants sélectionnés -->
     <div class="bg-white p-4 rounded-xl shadow-md border">
       <table class="w-full text-sm">
         <thead class="text-darknavy font-semibold bg-lightgray">
@@ -140,17 +152,14 @@ watch(selectedComponentIds, (ids) => {
               </button>
             </td>
             <td class="px-4 py-3 text-darkgray">
-              {{
-                build[type.key]?.price !== undefined
-                  ? `${build[type.key].price} €`
-                  : '—'
-              }}
+              {{ build[type.key]?.price !== undefined ? `${build[type.key].price} €` : '—' }}
             </td>
           </tr>
         </tbody>
       </table>
     </div>
 
+    <!-- Sélecteur de composant -->
     <div
       v-if="selectorKey && componentTypes.find(t => t.key === selectorKey)?.endpoint"
       class="bg-white border shadow-md rounded-xl p-4"
@@ -164,12 +173,13 @@ watch(selectedComponentIds, (ids) => {
       />
     </div>
 
+    <!-- Bouton de création -->
     <div class="flex justify-end">
       <button
         class="bg-darknavy text-white px-6 py-2 rounded-xl hover:bg-violetdark transition"
         @click="submitBuild"
       >
-        💾 Créer le build
+        Créer le build
       </button>
     </div>
   </div>

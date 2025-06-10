@@ -1,10 +1,16 @@
 <script setup>
-import { ref, computed, watch } from 'vue'
+// Imports Vue
+import { ref, computed } from 'vue'
 import axios from 'axios'
+
+// Inertia router
 import { router } from '@inertiajs/vue3'
+
+// Composants internes
 import BuildFormFields from '@/Components/BuildFormFields.vue'
 import ComponentSelectorTable from '@/Components/ComponentSelectorTable.vue'
 
+// Définition des props reçues depuis Inertia
 const props = defineProps({
   build: {
     type: Object,
@@ -12,6 +18,7 @@ const props = defineProps({
   }
 })
 
+// Initialisation des données à partir du build reçu
 const build = ref({
   name: props.build.name || '',
   description: props.build.description || '',
@@ -26,6 +33,7 @@ const build = ref({
   case_model: props.build.components.find(c => c.component_type_id === 8) || null,
 })
 
+// Définition des types de composants
 const componentTypes = [
   { key: 'cpu', label: 'Processeur', endpoint: '/api/cpus' },
   { key: 'gpu', label: 'Carte graphique', endpoint: '/api/gpus' },
@@ -37,6 +45,7 @@ const componentTypes = [
   { key: 'case_model', label: 'Boîtier', endpoint: '/api/case-models' },
 ]
 
+// Calcul automatique du prix du build
 const autoPrice = computed(() => {
   return componentTypes.reduce((total, t) => {
     const comp = build.value[t.key]
@@ -44,11 +53,14 @@ const autoPrice = computed(() => {
   }, 0)
 })
 
+// Gestion du sélecteur de composant
 const selectorKey = ref(null)
+
 function handleSelect(key) {
   selectorKey.value = selectorKey.value === key ? null : key
 }
 
+// Envoi de la mise à jour du build
 async function submitEdit() {
   const payload = {
     name: build.value.name,
@@ -57,12 +69,14 @@ async function submitEdit() {
     price: autoPrice.value,
     components: []
   }
+
   for (const type of componentTypes) {
     const comp = build.value[type.key]
     if (comp && comp.id) {
       payload.components.push({ component_id: comp.component_id ?? comp.id })
     }
   }
+
   try {
     await axios.put(`/api/builds/${props.build.id}`, payload)
     router.visit('/builds')
@@ -75,6 +89,7 @@ async function submitEdit() {
 
 <template>
   <div class="max-w-6xl mx-auto px-4 py-10 space-y-10">
+    <!-- Informations générales -->
     <div class="bg-white p-6 rounded-xl shadow-md border space-y-4">
       <h1 class="text-2xl font-bold text-darknavy">Éditer le build</h1>
       <BuildFormFields
@@ -85,6 +100,7 @@ async function submitEdit() {
       />
     </div>
 
+    <!-- Tableau des composants -->
     <div class="bg-white p-4 rounded-xl shadow-md border">
       <table class="w-full text-sm">
         <thead class="text-darknavy font-semibold bg-lightgray">
@@ -113,17 +129,14 @@ async function submitEdit() {
               </button>
             </td>
             <td class="px-4 py-3 text-darkgray">
-              {{
-                build[type.key]?.price !== undefined
-                  ? `${build[type.key].price} €`
-                  : '—'
-              }}
+              {{ build[type.key]?.price !== undefined ? `${build[type.key].price} €` : '—' }}
             </td>
           </tr>
         </tbody>
       </table>
     </div>
 
+    <!-- Sélecteur de composant -->
     <div
       v-if="selectorKey && componentTypes.find(t => t.key === selectorKey)?.endpoint"
       class="bg-white border shadow-md rounded-xl p-4"
@@ -137,12 +150,13 @@ async function submitEdit() {
       />
     </div>
 
+    <!-- Boutons d'action -->
     <div class="flex justify-end space-x-2">
       <button
         class="bg-darknavy text-white px-6 py-2 rounded-xl hover:bg-violetdark transition"
         @click="submitEdit"
       >
-        💾 Enregistrer les modifications
+        Enregistrer les modifications
       </button>
       <button
         class="bg-lightgray text-darknavy px-6 py-2 rounded-xl border"

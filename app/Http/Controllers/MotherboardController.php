@@ -32,13 +32,11 @@ class MotherboardController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            // Champs du composant principal
-            'name'              => 'required|string|max:255',
-            'brand_id'          => 'required|exists:brands,id',
-            'component_type_id' => 'required|exists:component_types,id',
-            'price'             => 'nullable|numeric|min:0',
-            'img_url'           => 'nullable|string',
-            // Champs spécifiques Motherboard
+            'name'        => 'required|string|max:255',
+            'brand_id'    => 'required|exists:brands,id',
+            'price'       => 'nullable|numeric|min:0',
+            'img_url'     => 'nullable|string',
+            // Spécifiques Motherboard
             'socket'      => 'required|string|max:50',
             'chipset'     => 'required|string|max:100',
             'form_factor' => 'required|string|max:20',
@@ -46,16 +44,17 @@ class MotherboardController extends Controller
             'max_ram'     => 'required|integer|min:1',
         ]);
 
-        // Création du Component principal
+        // Sécurisation du type (fixe via la table component_types)
+        $componentTypeId = \App\Models\ComponentType::where('name', 'motherboard')->first()->id;
+
         $component = \App\Models\Component::create([
             'name' => $validated['name'],
             'brand_id' => $validated['brand_id'],
-            'component_type_id' => $validated['component_type_id'],
+            'component_type_id' => $componentTypeId,
             'price' => $validated['price'] ?? null,
             'img_url' => $validated['img_url'] ?? null,
         ]);
 
-        // Création de la Motherboard spécifique
         $motherboard = Motherboard::create([
             'component_id' => $component->id,
             'socket'      => $validated['socket'],
@@ -106,13 +105,11 @@ class MotherboardController extends Controller
     public function update(Request $request, Motherboard $motherboard)
     {
         $validated = $request->validate([
-            // Champs du composant principal
-            'name'              => 'required|string|max:255',
-            'brand_id'          => 'required|exists:brands,id',
-            'component_type_id' => 'required|exists:component_types,id',
-            'price'             => 'nullable|numeric|min:0',
-            'img_url'           => 'nullable|string',
-            // Champs spécifiques Motherboard
+            'name'        => 'required|string|max:255',
+            'brand_id'    => 'required|exists:brands,id',
+            'price'       => 'nullable|numeric|min:0',
+            'img_url'     => 'nullable|string',
+            // Spécifiques Motherboard
             'socket'      => 'required|string|max:50',
             'chipset'     => 'required|string|max:100',
             'form_factor' => 'required|string|max:20',
@@ -120,16 +117,13 @@ class MotherboardController extends Controller
             'max_ram'     => 'required|integer|min:1',
         ]);
 
-        // Update du composant principal
         $motherboard->component->update([
             'name' => $validated['name'],
             'brand_id' => $validated['brand_id'],
-            'component_type_id' => $validated['component_type_id'],
             'price' => $validated['price'] ?? null,
             'img_url' => $validated['img_url'] ?? null,
         ]);
 
-        // Update de la Motherboard
         $motherboard->update([
             'socket'      => $validated['socket'],
             'chipset'     => $validated['chipset'],

@@ -32,12 +32,10 @@ class GpuController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            // Champs du composant principal
-            'name'              => 'required|string|max:255',
-            'brand_id'          => 'required|exists:brands,id',
-            'component_type_id' => 'required|exists:component_types,id',
-            'price'             => 'nullable|numeric|min:0',
-            'img_url'           => 'nullable|string',
+            'name'         => 'required|string|max:255',
+            'brand_id'     => 'required|exists:brands,id',
+            'price'        => 'nullable|numeric|min:0',
+            'img_url'      => 'nullable|string',
             // Champs spécifiques GPU
             'chipset'      => 'required|string|max:255',
             'memory'       => 'required|string|max:20',
@@ -46,11 +44,14 @@ class GpuController extends Controller
             'tdp'          => 'nullable|integer|min:0',
         ]);
 
-        // Création du Component principal
+        // Sécurisation du type
+        $componentTypeId = \App\Models\ComponentType::where('name', 'gpu')->first()->id;
+
+        // Création du composant générique
         $component = \App\Models\Component::create([
             'name' => $validated['name'],
             'brand_id' => $validated['brand_id'],
-            'component_type_id' => $validated['component_type_id'],
+            'component_type_id' => $componentTypeId,
             'price' => $validated['price'] ?? null,
             'img_url' => $validated['img_url'] ?? null,
         ]);
@@ -106,12 +107,10 @@ class GpuController extends Controller
     public function update(Request $request, Gpu $gpu)
     {
         $validated = $request->validate([
-            // Champs du composant principal
-            'name'              => 'required|string|max:255',
-            'brand_id'          => 'required|exists:brands,id',
-            'component_type_id' => 'required|exists:component_types,id',
-            'price'             => 'nullable|numeric|min:0',
-            'img_url'           => 'nullable|string',
+            'name'         => 'required|string|max:255',
+            'brand_id'     => 'required|exists:brands,id',
+            'price'        => 'nullable|numeric|min:0',
+            'img_url'      => 'nullable|string',
             // Champs spécifiques GPU
             'chipset'      => 'required|string|max:255',
             'memory'       => 'required|string|max:20',
@@ -120,16 +119,13 @@ class GpuController extends Controller
             'tdp'          => 'nullable|integer|min:0',
         ]);
 
-        // Update du composant principal
         $gpu->component->update([
             'name' => $validated['name'],
             'brand_id' => $validated['brand_id'],
-            'component_type_id' => $validated['component_type_id'],
             'price' => $validated['price'] ?? null,
             'img_url' => $validated['img_url'] ?? null,
         ]);
 
-        // Update du GPU
         $gpu->update([
             'chipset'      => $validated['chipset'],
             'memory'       => $validated['memory'],

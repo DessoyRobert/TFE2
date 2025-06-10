@@ -22,6 +22,7 @@ class PsuController extends Controller
                 'wattage' => $psu->wattage,
                 'certification' => $psu->certification ?? '',
                 'modular' => $psu->modular,
+                'form_factor' => $psu->form_factor ?? '', // enlève si ce champ n'existe pas dans ta table
             ];
         })->values();
     }
@@ -30,23 +31,25 @@ class PsuController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            // Champs du composant principal
-            'name'              => 'required|string|max:255',
-            'brand_id'          => 'required|exists:brands,id',
-            'component_type_id' => 'required|exists:component_types,id',
-            'price'             => 'nullable|numeric|min:0',
-            'img_url'           => 'nullable|string',
+            'name'          => 'required|string|max:255',
+            'brand_id'      => 'required|exists:brands,id',
+            'price'         => 'nullable|numeric|min:0',
+            'img_url'       => 'nullable|string',
             // Champs spécifiques PSU
-            'wattage'      => 'required|integer|min:100',
-            'certification'=> 'required|string|max:50',
-            'modular'      => 'required|boolean',
+            'wattage'       => 'required|integer|min:100',
+            'certification' => 'required|string|max:50',
+            'modular'       => 'required|boolean',
+            'form_factor'   => 'required|string|max:20', // si ce champ existe, sinon retire-le
         ]);
+
+        // Récupération de l'ID du type psu
+        $componentTypeId = \App\Models\ComponentType::where('name', 'psu')->first()->id;
 
         // Création du Component principal
         $component = \App\Models\Component::create([
             'name' => $validated['name'],
             'brand_id' => $validated['brand_id'],
-            'component_type_id' => $validated['component_type_id'],
+            'component_type_id' => $componentTypeId,
             'price' => $validated['price'] ?? null,
             'img_url' => $validated['img_url'] ?? null,
         ]);
@@ -57,6 +60,7 @@ class PsuController extends Controller
             'wattage'       => $validated['wattage'],
             'certification' => $validated['certification'],
             'modular'       => $validated['modular'],
+            'form_factor'   => $validated['form_factor'], // retire si non utilisé
         ]);
 
         $psu->load('component.brand');
@@ -71,6 +75,7 @@ class PsuController extends Controller
             'wattage' => $psu->wattage,
             'certification' => $psu->certification ?? '',
             'modular' => $psu->modular,
+            'form_factor' => $psu->form_factor ?? '',
         ], Response::HTTP_CREATED);
     }
 
@@ -89,6 +94,7 @@ class PsuController extends Controller
             'wattage' => $psu->wattage,
             'certification' => $psu->certification ?? '',
             'modular' => $psu->modular,
+            'form_factor' => $psu->form_factor ?? '',
         ], Response::HTTP_OK);
     }
 
@@ -96,32 +102,29 @@ class PsuController extends Controller
     public function update(Request $request, Psu $psu)
     {
         $validated = $request->validate([
-            // Champs du composant principal
-            'name'              => 'required|string|max:255',
-            'brand_id'          => 'required|exists:brands,id',
-            'component_type_id' => 'required|exists:component_types,id',
-            'price'             => 'nullable|numeric|min:0',
-            'img_url'           => 'nullable|string',
+            'name'          => 'required|string|max:255',
+            'brand_id'      => 'required|exists:brands,id',
+            'price'         => 'nullable|numeric|min:0',
+            'img_url'       => 'nullable|string',
             // Champs spécifiques PSU
-            'wattage'      => 'required|integer|min:100',
-            'certification'=> 'required|string|max:50',
-            'modular'      => 'required|boolean',
+            'wattage'       => 'required|integer|min:100',
+            'certification' => 'required|string|max:50',
+            'modular'       => 'required|boolean',
+            'form_factor'   => 'required|string|max:20',
         ]);
 
-        // Update du composant principal
         $psu->component->update([
             'name' => $validated['name'],
             'brand_id' => $validated['brand_id'],
-            'component_type_id' => $validated['component_type_id'],
             'price' => $validated['price'] ?? null,
             'img_url' => $validated['img_url'] ?? null,
         ]);
 
-        // Update du PSU
         $psu->update([
             'wattage'       => $validated['wattage'],
             'certification' => $validated['certification'],
             'modular'       => $validated['modular'],
+            'form_factor'   => $validated['form_factor'],
         ]);
 
         $psu->load('component.brand');
@@ -136,6 +139,7 @@ class PsuController extends Controller
             'wattage' => $psu->wattage,
             'certification' => $psu->certification ?? '',
             'modular' => $psu->modular,
+            'form_factor' => $psu->form_factor ?? '',
         ], Response::HTTP_OK);
     }
 

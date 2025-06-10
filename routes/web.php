@@ -7,8 +7,12 @@ use Inertia\Inertia;
 use App\Http\Middleware\IsAdmin;
 use App\Http\Controllers\BuildController;
 use App\Http\Controllers\ComponentController;
+
+Route::get('/components/{component}', [ComponentController::class, 'showPage'])->name('components.show');
 Route::resource('builds', BuildController::class);
-Route::resource('components', ComponentController::class);
+//Route::resource('components', ComponentController::class);
+// Route Inertia pour la fiche détaillée composant
+
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [

@@ -32,12 +32,10 @@ class RamController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            // Champs du composant principal
-            'name'              => 'required|string|max:255',
-            'brand_id'          => 'required|exists:brands,id',
-            'component_type_id' => 'required|exists:component_types,id',
-            'price'             => 'nullable|numeric|min:0',
-            'img_url'           => 'nullable|string',
+            'name'         => 'required|string|max:255',
+            'brand_id'     => 'required|exists:brands,id',
+            'price'        => 'nullable|numeric|min:0',
+            'img_url'      => 'nullable|string',
             // Champs spécifiques RAM
             'type'         => 'required|string|max:50',
             'capacity_gb'  => 'required|integer|min:1',
@@ -46,16 +44,17 @@ class RamController extends Controller
             'cas_latency'  => 'nullable|integer|min:1',
         ]);
 
-        // Création du Component principal
+        // Récupération de l'ID du type ram
+        $componentTypeId = \App\Models\ComponentType::where('name', 'ram')->first()->id;
+
         $component = \App\Models\Component::create([
             'name' => $validated['name'],
             'brand_id' => $validated['brand_id'],
-            'component_type_id' => $validated['component_type_id'],
+            'component_type_id' => $componentTypeId,
             'price' => $validated['price'] ?? null,
             'img_url' => $validated['img_url'] ?? null,
         ]);
 
-        // Création de la RAM spécifique
         $ram = Ram::create([
             'component_id' => $component->id,
             'type'         => $validated['type'],
@@ -106,12 +105,10 @@ class RamController extends Controller
     public function update(Request $request, Ram $ram)
     {
         $validated = $request->validate([
-            // Champs du composant principal
-            'name'              => 'required|string|max:255',
-            'brand_id'          => 'required|exists:brands,id',
-            'component_type_id' => 'required|exists:component_types,id',
-            'price'             => 'nullable|numeric|min:0',
-            'img_url'           => 'nullable|string',
+            'name'         => 'required|string|max:255',
+            'brand_id'     => 'required|exists:brands,id',
+            'price'        => 'nullable|numeric|min:0',
+            'img_url'      => 'nullable|string',
             // Champs spécifiques RAM
             'type'         => 'required|string|max:50',
             'capacity_gb'  => 'required|integer|min:1',
@@ -120,16 +117,13 @@ class RamController extends Controller
             'cas_latency'  => 'nullable|integer|min:1',
         ]);
 
-        // Update du composant principal
         $ram->component->update([
             'name' => $validated['name'],
             'brand_id' => $validated['brand_id'],
-            'component_type_id' => $validated['component_type_id'],
             'price' => $validated['price'] ?? null,
             'img_url' => $validated['img_url'] ?? null,
         ]);
 
-        // Update de la RAM
         $ram->update([
             'type'         => $validated['type'],
             'capacity_gb'  => $validated['capacity_gb'],

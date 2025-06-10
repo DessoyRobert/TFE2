@@ -7,7 +7,16 @@ use App\Models\Component;
 use Illuminate\Http\Request;
 
 class ComponentController extends Controller
+{   
+    public function create()
 {
+    // Si tu utilises Inertia (Vue.js) :
+    return \Inertia\Inertia::render('Components/Create', [
+        'brands' => \App\Models\Brand::all(['id', 'name']),
+        'component_types' => \App\Models\ComponentType::all(['id', 'name']),
+        'categories' => \App\Models\Category::all(['id', 'name']),
+    ]);
+}
     // GET /api/components
     public function index()
     {
@@ -53,6 +62,16 @@ class ComponentController extends Controller
         $component = Component::with(['brand', 'type', 'cpu', 'gpu', 'ram', 'motherboard', 'storage', 'psu', 'cooler', 'casemodel'])->findOrFail($id);
         return response()->json($component);
     }
+    // FICHE PRODUIT DETAILLEE POUR LE FRONT (Inertia)
+    public function showPage(Component $component)
+    {
+        $component->load(['brand', 'type', 'cpu', 'gpu', 'ram', 'motherboard', 'storage', 'psu', 'cooler', 'casemodel']);
+        return \Inertia\Inertia::render('Components/Show', [
+            'component' => $component,
+            'type' => strtolower(optional($component->type)->name ?? ''),
+        ]);
+    }
+
 
     // PUT/PATCH /api/components/{id}
     public function update(Request $request, $id)

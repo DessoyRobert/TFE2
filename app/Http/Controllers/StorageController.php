@@ -31,23 +31,24 @@ class StorageController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            // Champs du composant principal
-            'name'              => 'required|string|max:255',
-            'brand_id'          => 'required|exists:brands,id',
-            'component_type_id' => 'required|exists:component_types,id',
-            'price'             => 'nullable|numeric|min:0',
-            'img_url'           => 'nullable|string',
+            'name'         => 'required|string|max:255',
+            'brand_id'     => 'required|exists:brands,id',
+            'price'        => 'nullable|numeric|min:0',
+            'img_url'      => 'nullable|string',
             // Champs spécifiques Storage
             'type'         => 'required|string|max:50',
             'capacity_gb'  => 'required|integer|min:1',
             'interface'    => 'required|string|max:50',
         ]);
 
+        // Récupération de l'ID du type storage
+        $componentTypeId = \App\Models\ComponentType::where('name', 'storage')->first()->id;
+
         // Création du Component principal
         $component = \App\Models\Component::create([
             'name' => $validated['name'],
             'brand_id' => $validated['brand_id'],
-            'component_type_id' => $validated['component_type_id'],
+            'component_type_id' => $componentTypeId,
             'price' => $validated['price'] ?? null,
             'img_url' => $validated['img_url'] ?? null,
         ]);
@@ -97,12 +98,10 @@ class StorageController extends Controller
     public function update(Request $request, Storage $storage)
     {
         $validated = $request->validate([
-            // Champs du composant principal
-            'name'              => 'required|string|max:255',
-            'brand_id'          => 'required|exists:brands,id',
-            'component_type_id' => 'required|exists:component_types,id',
-            'price'             => 'nullable|numeric|min:0',
-            'img_url'           => 'nullable|string',
+            'name'         => 'required|string|max:255',
+            'brand_id'     => 'required|exists:brands,id',
+            'price'        => 'nullable|numeric|min:0',
+            'img_url'      => 'nullable|string',
             // Champs spécifiques Storage
             'type'         => 'required|string|max:50',
             'capacity_gb'  => 'required|integer|min:1',
@@ -113,7 +112,6 @@ class StorageController extends Controller
         $storage->component->update([
             'name' => $validated['name'],
             'brand_id' => $validated['brand_id'],
-            'component_type_id' => $validated['component_type_id'],
             'price' => $validated['price'] ?? null,
             'img_url' => $validated['img_url'] ?? null,
         ]);

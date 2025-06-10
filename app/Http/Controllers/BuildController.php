@@ -8,7 +8,6 @@ use Inertia\Inertia;
 
 class BuildController extends Controller
 {
-    // GET /api/builds
     public function index(Request $request)
     {
         $search = $request->input('search');
@@ -23,30 +22,27 @@ class BuildController extends Controller
     }
 
 
-    // GET /api/builds/create
     public function create()
     {
         return Inertia::render('Builds/Create');
     }
 
-    // POST /api/builds
     public function store(Request $request)
     {  
         $data = $request->validate([
             'name' => 'required|string',
             'description' => 'nullable|string',
-            'imgUrl' => 'nullable|string',
+            'img_url' => 'nullable|string',
             'price' => 'nullable|numeric',
             'components' => 'required|array',
             'components.*.component_id' => 'required|integer|exists:components,id',
-            // plus besoin de 'components.*.type'
         ]);
 
         // On crée le build
         $build = Build::create([
             'name' => $data['name'],
             'description' => $data['description'] ?? '',
-            'imgUrl' => $data['imgUrl'] ?? null,
+            'img_url' => $data['img_url'] ?? null,
             'price' => $data['price'] ?? null,
         ]);
 
@@ -59,7 +55,6 @@ class BuildController extends Controller
     }
 
 
-        // GET /api/builds/{build}
         public function show(Build $build)
         {
             $build->load('components.brand');
