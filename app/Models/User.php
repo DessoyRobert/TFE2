@@ -45,4 +45,12 @@ class User extends Authenticatable
             'password' => 'hashed',
         ];
     }
+    // redirige l'admin sur son dashboard admin lors de sa connexion
+    public function getRedirectRoute(): string
+    {
+    return $this->is_admin
+        ? route('admin.dashboard')
+        : route('dashboard');
+    }
+
 }
