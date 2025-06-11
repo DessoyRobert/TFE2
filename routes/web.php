@@ -1,33 +1,14 @@
 <?php
 
-use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\BuildController;
-use App\Http\Controllers\ComponentController;
-use App\Http\Controllers\CpuController;
-use App\Http\Controllers\GpuController;
-use App\Http\Controllers\BrandController;
-use App\Http\Controllers\CategoryController;
-use App\Http\Controllers\UserController;
-use App\Http\Controllers\CompatibilityRuleController;
-use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
-/*
-|--------------------------------------------------------------------------
-| Routes publiques
-|--------------------------------------------------------------------------
-*/
+// Contrôleurs publics
+use App\Http\Controllers\ComponentController;
+use App\Http\Controllers\BuildController;
+use App\Http\Controllers\ProfileController;
 
-// Page détaillée composant
-Route::get('/components/{component}', [ComponentController::class, 'showPage'])
-    ->name('components.show');
-
-// Builds : consultation publique uniquement (pas de suppression/modif en anonyme)
-Route::resource('builds', BuildController::class)
-     ->only(['index', 'create', 'show']);
-
-// Page d'accueil
+// Pages publiques
 Route::get('/', function () {
     return Inertia::render('Welcome', [
         'canLogin'       => Route::has('login'),
@@ -37,7 +18,13 @@ Route::get('/', function () {
     ]);
 });
 
-// Tableau de bord utilisateur
+// Fiche détaillée composant (Inertia, public)
+Route::get('/components/{component}', [ComponentController::class, 'showPage'])->name('components.show');
+
+// Pages builds publiques (création consultation mais pas modif/suppression)
+Route::resource('builds', BuildController::class)->only(['index', 'create', 'show']);
+
+// Dashboard utilisateur
 Route::get('/dashboard', function () {
     return Inertia::render('Dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
@@ -51,14 +38,14 @@ Route::middleware('auth')->group(function () {
 
 /*
 |--------------------------------------------------------------------------
-| Routes ADMIN (protégées)
+| Routes ADMIN PANEL (protégées par auth + is_admin)
 |--------------------------------------------------------------------------
 */
 Route::middleware(['auth', 'is_admin'])
     ->prefix('admin')
     ->name('admin.')
     ->group(function () {
-        // Dashboard admin avec stats
+        // Dashboard admin Inertia
         Route::get('/dashboard', function () {
             return Inertia::render('Admin/Dashboard', [
                 'stats' => [
@@ -69,14 +56,10 @@ Route::middleware(['auth', 'is_admin'])
             ]);
         })->name('dashboard');
 
-        // CRUD complet pour les entités admin (hors public)
-        Route::resource('brands', BrandController::class);
-        Route::resource('categories', CategoryController::class);
-        Route::resource('cpus', CpuController::class);
-        Route::resource('gpus', GpuController::class);
-        Route::resource('builds', BuildController::class)->except(['index', 'create', 'show']);
-        Route::resource('users', UserController::class);
-        Route::resource('compatibility-rules', CompatibilityRuleController::class);
+        // Tu peux mettre ici des routes Inertia de gestion (CRUD, pages de formulaire, etc)
+        // Exemple :
+        // Route::resource('components', \App\Http\Controllers\Admin\ComponentController::class);
+        // À adapter selon tes besoins côté admin panel (web, pas API)
     });
 
 // Auth (login/register/...)

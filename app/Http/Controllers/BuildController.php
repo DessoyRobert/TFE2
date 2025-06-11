@@ -8,6 +8,7 @@ use Inertia\Inertia;
 
 class BuildController extends Controller
 {
+    // GET /builds
     public function index(Request $request)
     {
         $search = $request->input('search');
@@ -21,14 +22,15 @@ class BuildController extends Controller
         ]);
     }
 
-
+    // GET /builds/create
     public function create()
     {
         return Inertia::render('Builds/Create');
     }
 
+    // POST /builds
     public function store(Request $request)
-    {  
+    {
         $data = $request->validate([
             'name' => 'required|string',
             'description' => 'nullable|string',
@@ -38,7 +40,6 @@ class BuildController extends Controller
             'components.*.component_id' => 'required|integer|exists:components,id',
         ]);
 
-        // On crée le build
         $build = Build::create([
             'name' => $data['name'],
             'description' => $data['description'] ?? '',
@@ -46,7 +47,6 @@ class BuildController extends Controller
             'price' => $data['price'] ?? null,
         ]);
 
-        // On attache les composants (seulement l'id du component)
         foreach ($data['components'] as $component) {
             $build->components()->attach($component['component_id']);
         }
@@ -54,70 +54,13 @@ class BuildController extends Controller
         return response()->json($build->load('components'), 201);
     }
 
-
-        public function show(Build $build)
-        {
-            $build->load('components.brand');
-
-            return Inertia::render('Builds/Show', [
-                'build' => $build
-            ]);
-        }
-
-        // GET /api/builds/{build}/edit
-        public function edit(Build $build)
-        {
-            $build->load('components.brand');
-
-            return Inertia::render('Builds/Edit', [
-                'build' => $build
-            ]);
-        }
-
-    // PUT/PATCH /api/builds/{build}
-    public function update(Request $request, Build $build)
+    // GET /builds/{build}
+    public function show(Build $build)
     {
-        $rules = [
-            'name'        => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'price'       => 'nullable|numeric',
-            'img_url'     => 'nullable|string|max:255',
-            'components'  => 'nullable|array',
-        ];
+        $build->load('components.brand');
 
-        if ($request->filled('components')) {
-            $rules['components.*.component_id'] = 'required|exists:components,id';
-            $rules['components.*.quantity']     = 'required|integer|min:1';
-        }
-
-        $data = $request->validate($rules);
-
-        $build->update([
-            'name'        => $data['name'],
-            'description' => $data['description'] ?? null,
-            'price'       => $data['price'] ?? null,
-            'img_url'     => $data['img_url'] ?? null,
+        return Inertia::render('Builds/Show', [
+            'build' => $build
         ]);
-
-        if (!empty($data['components'])) {
-            $build->components()->sync(
-                collect($data['components'])->mapWithKeys(fn ($comp) => [
-                    $comp['component_id'] => ['quantity' => $comp['quantity']]
-                ])->toArray()
-            );
-        } else {
-            $build->components()->detach();
-        }
-
-        return redirect()->route('builds.index');
-    }
-
-    // DELETE /api/builds/{build}
-    public function destroy(Build $build)
-    {
-        $build->components()->detach();
-        $build->delete();
-
-        return redirect()->route('builds.index');
     }
 }

@@ -2,11 +2,8 @@
 
 use Illuminate\Support\Facades\Route;
 
-// Import des controllers
+// Public : Lecture seule (GET) sur les API
 use App\Http\Controllers\ComponentController;
-use App\Http\Controllers\BuildController;
-use App\Http\Controllers\BrandController;
-use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\CpuController;
 use App\Http\Controllers\GpuController;
 use App\Http\Controllers\RamController;
@@ -15,50 +12,109 @@ use App\Http\Controllers\StorageController;
 use App\Http\Controllers\PsuController;
 use App\Http\Controllers\CoolerController;
 use App\Http\Controllers\CaseModelController;
-use App\Http\Controllers\Api\BuildValidatorController;
-use App\Http\Controllers\Api\BuildValidationTempController;
-//use App\Http\Controllers\ImageController;
+use App\Http\Controllers\BrandController;
+use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\BuildController;
 
-// Routes API REST (préfères ces routes pour ton front en Vue.js/Inertia)
-Route::get('/builds/{build}/validate', BuildValidatorController::class);
-Route::post('/builds/validate-temp', BuildValidationTempController::class);
-// Composants spécifiques
-Route::apiResource('cpus', CpuController::class);
-Route::apiResource('gpus', GpuController::class);
-Route::apiResource('rams', RamController::class);
-Route::apiResource('motherboards', MotherboardController::class);
-Route::apiResource('storages', StorageController::class);
-Route::apiResource('psus', PsuController::class);
-Route::apiResource('coolers', CoolerController::class);
-Route::apiResource('case-models', CaseModelController::class);
+// Admin : CRUD sécurisé
+use App\Http\Controllers\Admin\ComponentController as AdminComponentController;
+use App\Http\Controllers\Admin\CpuController as AdminCpuController;
+use App\Http\Controllers\Admin\GpuController as AdminGpuController;
+use App\Http\Controllers\Admin\RamController as AdminRamController;
+use App\Http\Controllers\Admin\MotherboardController as AdminMotherboardController;
+use App\Http\Controllers\Admin\StorageController as AdminStorageController;
+use App\Http\Controllers\Admin\PsuController as AdminPsuController;
+use App\Http\Controllers\Admin\CoolerController as AdminCoolerController;
+use App\Http\Controllers\Admin\CaseModelController as AdminCaseModelController;
+use App\Http\Controllers\Admin\BrandController as AdminBrandController;
+use App\Http\Controllers\Admin\CategoryController as AdminCategoryController;
+use App\Http\Controllers\Admin\BuildController as AdminBuildController;
 
-// Table parent "générique"
-Route::apiResource('components', ComponentController::class);
+// PUBLIC API ROUTES (lecture seule, pas besoin d’auth)
+Route::get('components', [ComponentController::class, 'index']);
+Route::get('components/{component}', [ComponentController::class, 'show']);
+Route::get('cpus', [CpuController::class, 'index']);
+Route::get('cpus/{cpu}', [CpuController::class, 'show']);
+Route::get('gpus', [GpuController::class, 'index']);
+Route::get('gpus/{gpu}', [GpuController::class, 'show']);
+Route::get('rams', [RamController::class, 'index']);
+Route::get('rams/{ram}', [RamController::class, 'show']);
+Route::get('motherboards', [MotherboardController::class, 'index']);
+Route::get('motherboards/{motherboard}', [MotherboardController::class, 'show']);
+Route::get('storages', [StorageController::class, 'index']);
+Route::get('storages/{storage}', [StorageController::class, 'show']);
+Route::get('psus', [PsuController::class, 'index']);
+Route::get('psus/{psu}', [PsuController::class, 'show']);
+Route::get('coolers', [CoolerController::class, 'index']);
+Route::get('coolers/{cooler}', [CoolerController::class, 'show']);
+Route::get('case-models', [CaseModelController::class, 'index']);
+Route::get('case-models/{case_model}', [CaseModelController::class, 'show']);
+Route::get('brands', [BrandController::class, 'index']);
+Route::get('brands/{brand}', [BrandController::class, 'show']);
+Route::get('categories', [CategoryController::class, 'index']);
+Route::get('categories/{category}', [CategoryController::class, 'show']);
+Route::get('builds', [BuildController::class, 'index']);
+Route::get('builds/{build}', [BuildController::class, 'show']);
 
-// Marques & catégories
-Route::apiResource('brands', BrandController::class);
-Route::apiResource('categories', CategoryController::class);
+// ADMIN API ROUTES (CRUD protégé par auth + is_admin)
+Route::middleware(['auth:sanctum', 'is_admin'])->group(function () {
+    // Components
+    Route::post('components', [AdminComponentController::class, 'store']);
+    Route::put('components/{component}', [AdminComponentController::class, 'update']);
+    Route::delete('components/{component}', [AdminComponentController::class, 'destroy']);
 
-// Builds & relations builds <-> composants
-Route::apiResource('builds', BuildController::class);
+    // CPUs
+    Route::post('cpus', [AdminCpuController::class, 'store']);
+    Route::put('cpus/{cpu}', [AdminCpuController::class, 'update']);
+    Route::delete('cpus/{cpu}', [AdminCpuController::class, 'destroy']);
 
-// Images
-//Route::apiResource('images', ImageController::class);
+    // GPUs
+    Route::post('gpus', [AdminGpuController::class, 'store']);
+    Route::put('gpus/{gpu}', [AdminGpuController::class, 'update']);
+    Route::delete('gpus/{gpu}', [AdminGpuController::class, 'destroy']);
 
-// (optionnel) Middleware d’authentification API pour certaines routes
-// Route::middleware('auth:sanctum')->group(function () {
-//     Route::apiResource('builds', BuildController::class);
-//     // autres routes protégées
-// });
+    // RAMs
+    Route::post('rams', [AdminRamController::class, 'store']);
+    Route::put('rams/{ram}', [AdminRamController::class, 'update']);
+    Route::delete('rams/{ram}', [AdminRamController::class, 'destroy']);
 
-/*
-|-------------------------------------
-| Exemple de points d’API accessibles :
-| GET      /api/cpus
-| GET      /api/cpus/{id}
-| POST     /api/cpus
-| PUT/PATCH /api/cpus/{id}
-| DELETE   /api/cpus/{id}
-| ... idem pour chaque ressource ci-dessus
-|-------------------------------------
-*/
+    // Motherboards
+    Route::post('motherboards', [AdminMotherboardController::class, 'store']);
+    Route::put('motherboards/{motherboard}', [AdminMotherboardController::class, 'update']);
+    Route::delete('motherboards/{motherboard}', [AdminMotherboardController::class, 'destroy']);
+
+    // Storages
+    Route::post('storages', [AdminStorageController::class, 'store']);
+    Route::put('storages/{storage}', [AdminStorageController::class, 'update']);
+    Route::delete('storages/{storage}', [AdminStorageController::class, 'destroy']);
+
+    // PSUs
+    Route::post('psus', [AdminPsuController::class, 'store']);
+    Route::put('psus/{psu}', [AdminPsuController::class, 'update']);
+    Route::delete('psus/{psu}', [AdminPsuController::class, 'destroy']);
+
+    // Coolers
+    Route::post('coolers', [AdminCoolerController::class, 'store']);
+    Route::put('coolers/{cooler}', [AdminCoolerController::class, 'update']);
+    Route::delete('coolers/{cooler}', [AdminCoolerController::class, 'destroy']);
+
+    // Case Models
+    Route::post('case-models', [AdminCaseModelController::class, 'store']);
+    Route::put('case-models/{case_model}', [AdminCaseModelController::class, 'update']);
+    Route::delete('case-models/{case_model}', [AdminCaseModelController::class, 'destroy']);
+
+    // Brands
+    Route::post('brands', [AdminBrandController::class, 'store']);
+    Route::put('brands/{brand}', [AdminBrandController::class, 'update']);
+    Route::delete('brands/{brand}', [AdminBrandController::class, 'destroy']);
+
+    // Categories
+    Route::post('categories', [AdminCategoryController::class, 'store']);
+    Route::put('categories/{category}', [AdminCategoryController::class, 'update']);
+    Route::delete('categories/{category}', [AdminCategoryController::class, 'destroy']);
+
+    // Builds
+    Route::post('builds', [AdminBuildController::class, 'store']);
+    Route::put('builds/{build}', [AdminBuildController::class, 'update']);
+    Route::delete('builds/{build}', [AdminBuildController::class, 'destroy']);
+});

@@ -2,25 +2,14 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Controllers\Controller;
 use App\Models\Component;
 use Illuminate\Http\Request;
 
 class ComponentController extends Controller
-{   
-    public function create()
 {
-    // Si tu utilises Inertia (Vue.js) :
-    return \Inertia\Inertia::render('Components/Create', [
-        'brands' => \App\Models\Brand::all(['id', 'name']),
-        'component_types' => \App\Models\ComponentType::all(['id', 'name']),
-        'categories' => \App\Models\Category::all(['id', 'name']),
-    ]);
-}
-    // GET /api/components
+    // GET /components (liste)
     public function index()
     {
-        // On charge la brand (et type si tu veux)
         return Component::with(['brand', 'type'])->get()->map(function ($component) {
             return [
                 'id' => $component->id,
@@ -32,72 +21,40 @@ class ComponentController extends Controller
                 'description' => $component->description,
                 'release_year' => $component->release_year,
                 'ean' => $component->ean,
-                // Ajoute ici d'autres champs spécifiques si tu veux
             ];
         })->values();
     }
 
-    // POST /api/components
-    public function store(Request $request)
-    {
-        $data = $request->validate([
-            'name' => 'required',
-            'brand_id' => 'required|exists:brands,id',
-            'component_type_id' => 'required|exists:component_types,id',
-            'price' => 'nullable|numeric',
-            'img_url' => 'nullable|string',
-            'description' => 'nullable|string',
-            'release_year' => 'nullable|integer',
-            'ean' => 'nullable|string'
-        ]);
-
-        $component = Component::create($data);
-
-        return response()->json($component->load(['brand', 'type']), 201);
-    }
-
-    // GET /api/components/{id}
+    // GET /components/{id} (JSON)
     public function show($id)
     {
-        $component = Component::with(['brand', 'type', 'cpu', 'gpu', 'ram', 'motherboard', 'storage', 'psu', 'cooler', 'casemodel'])->findOrFail($id);
+        $component = Component::with([
+            'brand', 'type', 'cpu', 'gpu', 'ram',
+            'motherboard', 'storage', 'psu', 'cooler', 'casemodel'
+        ])->findOrFail($id);
         return response()->json($component);
     }
-    // FICHE PRODUIT DETAILLEE POUR LE FRONT (Inertia)
+
+    // GET /components/{component} (fiche détaillée Inertia)
     public function showPage(Component $component)
     {
-        $component->load(['brand', 'type', 'cpu', 'gpu', 'ram', 'motherboard', 'storage', 'psu', 'cooler', 'casemodel']);
+        $component->load([
+            'brand', 'type', 'cpu', 'gpu', 'ram',
+            'motherboard', 'storage', 'psu', 'cooler', 'casemodel'
+        ]);
         return \Inertia\Inertia::render('Components/Show', [
             'component' => $component,
             'type' => strtolower(optional($component->type)->name ?? ''),
         ]);
     }
 
-
-    // PUT/PATCH /api/components/{id}
-    public function update(Request $request, $id)
+    // (Optionnel) GET /components/create (page création publique ?)
+    public function create()
     {
-        $component = Component::findOrFail($id);
-        $data = $request->validate([
-            'name' => 'required',
-            'brand_id' => 'required|exists:brands,id',
-            'component_type_id' => 'required|exists:component_types,id',
-            'price' => 'nullable|numeric',
-            'img_url' => 'nullable|string',
-            'description' => 'nullable|string',
-            'release_year' => 'nullable|integer',
-            'ean' => 'nullable|string'
+        return \Inertia\Inertia::render('Components/Create', [
+            'brands' => \App\Models\Brand::all(['id', 'name']),
+            'component_types' => \App\Models\ComponentType::all(['id', 'name']),
+            'categories' => \App\Models\Category::all(['id', 'name']),
         ]);
-
-        $component->update($data);
-
-        return response()->json($component->load(['brand', 'type']));
-    }
-
-    // DELETE /api/components/{id}
-    public function destroy($id)
-    {
-        $component = Component::findOrFail($id);
-        $component->delete();
-        return response()->json(null, 204);
     }
 }
