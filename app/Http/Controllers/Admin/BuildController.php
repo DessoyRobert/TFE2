@@ -4,20 +4,34 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Build;
+use App\Models\Component;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class BuildController extends Controller
 {
+    // GET /admin/builds
+    public function index()
+    {
+        $builds = Build::with('components.brand')->get();
+        return Inertia::render('Admin/Builds/Index', [
+            'builds' => $builds
+        ]);
+    }
+
     // GET /admin/builds/{build}/edit
     public function edit(Build $build)
     {
         $build->load('components.brand');
+        // Charger tous les composants pour permettre la sélection/édition
+        $allComponents = Component::with('brand', 'type')->get();
 
-        return Inertia::render('Builds/Edit', [
-            'build' => $build
+        return Inertia::render('Admin/Builds/Edit', [
+            'build' => $build,
+            'allComponents' => $allComponents
         ]);
     }
+
     // PUT/PATCH /admin/builds/{build}
     public function update(Request $request, Build $build)
     {
@@ -53,7 +67,7 @@ class BuildController extends Controller
             $build->components()->detach();
         }
 
-        return redirect()->route('builds.index');
+        return redirect()->route('admin.builds.index');
     }
 
     // DELETE /admin/builds/{build}
@@ -62,6 +76,6 @@ class BuildController extends Controller
         $build->components()->detach();
         $build->delete();
 
-        return redirect()->route('builds.index');
+        return redirect()->route('admin.builds.index');
     }
 }

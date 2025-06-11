@@ -49,14 +49,15 @@ class Component extends Model
     }
 
     // Relations spécialisées : chaque composant "fille" possède un et un seul composant parent
-    public function cpu()         { return $this->hasOne(Cpu::class); }
-    public function gpu()         { return $this->hasOne(Gpu::class); }
-    public function ram()         { return $this->hasOne(Ram::class); }
-    public function motherboard() { return $this->hasOne(Motherboard::class); }
-    public function storage()     { return $this->hasOne(Storage::class); }
-    public function psu()         { return $this->hasOne(Psu::class); }
-    public function cooler()      { return $this->hasOne(Cooler::class); }
-    public function casemodel()   { return $this->hasOne(CaseModel::class); }
+public function cpu()         { return $this->hasOne(Cpu::class, 'component_id'); }
+public function gpu()         { return $this->hasOne(Gpu::class, 'component_id'); }
+public function ram()         { return $this->hasOne(Ram::class, 'component_id'); }
+public function motherboard() { return $this->hasOne(Motherboard::class, 'component_id'); }
+public function storage()     { return $this->hasOne(Storage::class, 'component_id'); }
+public function psu()         { return $this->hasOne(Psu::class, 'component_id'); }
+public function cooler()      { return $this->hasOne(Cooler::class, 'component_id'); }
+public function casemodel()   { return $this->hasOne(CaseModel::class, 'component_id'); }
+
 
     /**
      * Relation N-N avec Build (table pivot build_component)

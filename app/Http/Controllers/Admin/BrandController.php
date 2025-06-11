@@ -6,15 +6,22 @@ use App\Http\Controllers\Controller;
 use App\Models\Brand;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
-
+use Inertia\Inertia;
 class BrandController extends Controller
 {
     // GET /admin/brands (optionnel pour admin panel)
     public function index()
     {
-        return response()->json(Brand::all(), Response::HTTP_OK);
+        return Inertia::render('Admin/Brands/Index', [
+        'brands' => Brand::all(['id', 'name'])
+    ]);
     }
-
+    public function edit(Brand $brand)
+    {
+        return \Inertia\Inertia::render('Admin/Brands/Edit', [
+            'brand' => $brand
+        ]);
+    }
     // POST /admin/brands
     public function store(Request $request)
     {

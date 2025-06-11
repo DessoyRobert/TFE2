@@ -33,16 +33,16 @@ const build = ref({
   case_model: props.build.components.find(c => c.component_type_id === 8) || null,
 })
 
-// Définition des types de composants
+// Endpoints admin pour la gestion des composants
 const componentTypes = [
-  { key: 'cpu', label: 'Processeur', endpoint: '/api/cpus' },
-  { key: 'gpu', label: 'Carte graphique', endpoint: '/api/gpus' },
-  { key: 'ram', label: 'Mémoire RAM', endpoint: '/api/rams' },
-  { key: 'motherboard', label: 'Carte mère', endpoint: '/api/motherboards' },
-  { key: 'storage', label: 'Stockage', endpoint: '/api/storages' },
-  { key: 'psu', label: 'Alimentation', endpoint: '/api/psus' },
-  { key: 'cooler', label: 'Refroidissement', endpoint: '/api/coolers' },
-  { key: 'case_model', label: 'Boîtier', endpoint: '/api/case-models' },
+  { key: 'cpu', label: 'Processeur', endpoint: '/api/admin/cpus' },
+  { key: 'gpu', label: 'Carte graphique', endpoint: '/api/admin/gpus' },
+  { key: 'ram', label: 'Mémoire RAM', endpoint: '/api/admin/rams' },
+  { key: 'motherboard', label: 'Carte mère', endpoint: '/api/admin/motherboards' },
+  { key: 'storage', label: 'Stockage', endpoint: '/api/admin/storages' },
+  { key: 'psu', label: 'Alimentation', endpoint: '/api/admin/psus' },
+  { key: 'cooler', label: 'Refroidissement', endpoint: '/api/admin/coolers' },
+  { key: 'case_model', label: 'Boîtier', endpoint: '/api/admin/case-models' },
 ]
 
 // Calcul automatique du prix du build
@@ -60,7 +60,7 @@ function handleSelect(key) {
   selectorKey.value = selectorKey.value === key ? null : key
 }
 
-// Envoi de la mise à jour du build
+// Envoi de la mise à jour du build (CRUD admin)
 async function submitEdit() {
   const payload = {
     name: build.value.name,
@@ -72,14 +72,14 @@ async function submitEdit() {
 
   for (const type of componentTypes) {
     const comp = build.value[type.key]
-    if (comp && comp.id) {
+    if (comp && (comp.component_id || comp.id)) {
       payload.components.push({ component_id: comp.component_id ?? comp.id })
     }
   }
 
   try {
-    await axios.put(`/api/builds/${props.build.id}`, payload)
-    router.visit('/builds')
+    await axios.put(`/api/admin/builds/${props.build.id}`, payload)
+    router.visit('/admin/builds')
   } catch (error) {
     console.error('Erreur lors de la mise à jour du build:', error)
     alert('Erreur lors de la mise à jour du build.')
@@ -91,7 +91,7 @@ async function submitEdit() {
   <div class="max-w-6xl mx-auto px-4 py-10 space-y-10">
     <!-- Informations générales -->
     <div class="bg-white p-6 rounded-xl shadow-md border space-y-4">
-      <h1 class="text-2xl font-bold text-darknavy">Éditer le build</h1>
+      <h1 class="text-2xl font-bold text-darknavy">Éditer le build (Admin)</h1>
       <BuildFormFields
         v-model:name="build.name"
         v-model:description="build.description"
@@ -160,7 +160,7 @@ async function submitEdit() {
       </button>
       <button
         class="bg-lightgray text-darknavy px-6 py-2 rounded-xl border"
-        @click="$inertia.visit('/builds')"
+        @click="$inertia.visit('/admin/builds')"
       >
         Annuler
       </button>

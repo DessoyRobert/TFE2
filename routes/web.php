@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Illuminate\Foundation\Application;
 use Inertia\Inertia;
 
 // Contrôleurs publics
@@ -21,7 +22,7 @@ Route::get('/', function () {
 // Fiche détaillée composant (Inertia, public)
 Route::get('/components/{component}', [ComponentController::class, 'showPage'])->name('components.show');
 
-// Pages builds publiques (création consultation mais pas modif/suppression)
+// Builds publics : consultation/ajout uniquement
 Route::resource('builds', BuildController::class)->only(['index', 'create', 'show']);
 
 // Dashboard utilisateur
@@ -45,21 +46,13 @@ Route::middleware(['auth', 'is_admin'])
     ->prefix('admin')
     ->name('admin.')
     ->group(function () {
-        // Dashboard admin Inertia
-        Route::get('/dashboard', function () {
-            return Inertia::render('Admin/Dashboard', [
-                'stats' => [
-                    'users'      => \App\Models\User::count(),
-                    'builds'     => \App\Models\Build::count(),
-                    'components' => \App\Models\Component::count(),
-                ],
-            ]);
-        })->name('dashboard');
-
-        // Tu peux mettre ici des routes Inertia de gestion (CRUD, pages de formulaire, etc)
-        // Exemple :
-        // Route::resource('components', \App\Http\Controllers\Admin\ComponentController::class);
-        // À adapter selon tes besoins côté admin panel (web, pas API)
+        // Dashboard admin via contrôleur dédié
+        Route::get('/dashboard', [\App\Http\Controllers\Admin\DashboardController::class, 'index'])->name('dashboard');
+         Route::resource('components', \App\Http\Controllers\Admin\ComponentController::class);
+         Route::resource('builds', \App\Http\Controllers\Admin\BuildController::class);
+        // Route::resource('users', \App\Http\Controllers\Admin\UserController::class);
+         Route::resource('brands', \App\Http\Controllers\Admin\BrandController::class);
+         Route::resource('categories', \App\Http\Controllers\Admin\CategoryController::class);
     });
 
 // Auth (login/register/...)

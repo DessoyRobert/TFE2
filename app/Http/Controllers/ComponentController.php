@@ -47,14 +47,5 @@ class ComponentController extends Controller
             'type' => strtolower(optional($component->type)->name ?? ''),
         ]);
     }
-
-    // (Optionnel) GET /components/create (page création publique ?)
-    public function create()
-    {
-        return \Inertia\Inertia::render('Components/Create', [
-            'brands' => \App\Models\Brand::all(['id', 'name']),
-            'component_types' => \App\Models\ComponentType::all(['id', 'name']),
-            'categories' => \App\Models\Category::all(['id', 'name']),
-        ]);
-    }
+    
 }
