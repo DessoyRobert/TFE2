@@ -14,19 +14,20 @@ class CoolerSeeder extends Seeder
         $categoryId = DB::table('categories')->where('name', 'like', '%cooler%')->value('id');
 
         $coolers = [
-            ['Noctua NH-D15', 'air', 2, 'AM4,LGA1200,LGA1700', 220, 165, 'Noctua'],
-            ['Cooler Master Hyper 212 Black', 'air', 1, 'AM4,LGA1200,LGA1700', 150, 160, 'Cooler Master'],
-            ['be quiet! Dark Rock Pro 4', 'air', 2, 'AM4,LGA1200,LGA1700', 250, 163, 'be quiet!'],
-            ['NZXT Kraken X63', 'liquid', 2, 'AM4,LGA1200,LGA1700', 280, null, 'NZXT'],
-            ['Corsair H100i RGB Platinum', 'liquid', 2, 'AM4,LGA1200,LGA1700', 240, null, 'Corsair'],
-            ['Arctic Freezer 34 eSports DUO', 'air', 2, 'AM4,LGA1200,LGA1700', 210, 157, 'Arctic'],
-            ['EK-AIO 240 D-RGB', 'liquid', 2, 'AM4,LGA1700', 250, null, 'EKWB'],
-            ['Thermaltake UX200 ARGB', 'air', 1, 'AM4,LGA1200,LGA1700', 130, 153, 'Thermaltake'],
-            ['Noctua NH-L9a-AM4', 'air', 1, 'AM4', 95, 37, 'Noctua'],
-            ['Cooler Master MasterLiquid ML240L', 'liquid', 2, 'AM4,LGA1200,LGA1700', 200, null, 'Cooler Master'],
+            // name, type, fan_count, compatible_sockets, max_tdp, height_mm, price, brand
+            ['Noctua NH-D15', 'Air', 2, 'AM4,LGA1700', 220, 165, 99.99, 'Noctua'],
+            ['be quiet! Pure Rock 2', 'Air', 1, 'AM4,LGA1200', 150, 155, 44.99, 'be quiet!'],
+            ['Corsair H100i RGB', 'Water', 2, 'AM4,LGA1700', 250, 27, 119.90, 'Corsair'],
+            ['Cooler Master Hyper 212', 'Air', 1, 'AM4,LGA1200', 150, 159, 34.99, 'Cooler Master'],
+            ['Arctic Freezer 34', 'Air', 1, 'AM4,LGA1700', 150, 157, 39.99, 'Arctic'],
+            ['NZXT Kraken X63', 'Water', 2, 'AM4,LGA1700', 280, 30, 159.00, 'NZXT'],
+            ['Deepcool GAMMAXX 400', 'Air', 1, 'AM4,LGA1200', 130, 155, 24.99, 'Deepcool'],
+            ['Noctua NH-U12S', 'Air', 1, 'AM4,LGA1700', 140, 158, 74.99, 'Noctua'],
+            ['Corsair iCUE H150i', 'Water', 3, 'AM5,LGA1700', 320, 27, 189.00, 'Corsair'],
+            ['be quiet! Dark Rock Pro 4', 'Air', 2, 'AM4,LGA1700', 250, 163, 89.00, 'be quiet!'],
         ];
 
-        foreach ($coolers as [$name, $type, $fanCount, $sockets, $tdp, $height, $brandName]) {
+        foreach ($coolers as [$name, $type, $fan_count, $compatible_sockets, $max_tdp, $height_mm, $price, $brandName]) {
             $brandId = DB::table('brands')->where('name', 'like', "%$brandName%")->value('id') ?? 1;
 
             $componentId = DB::table('components')->insertGetId([
@@ -34,19 +35,20 @@ class CoolerSeeder extends Seeder
                 'component_type_id' => $typeId,
                 'brand_id' => $brandId,
                 'category_id' => $categoryId,
+                'price' => $price,
                 'created_at' => $now,
                 'updated_at' => $now,
             ]);
 
             DB::table('coolers')->insert([
-                'component_id' => $componentId,
-                'type' => $type,
-                'fan_count' => $fanCount,
-                'compatible_sockets' => $sockets,
-                'max_tdp' => $tdp,
-                'height_mm' => $height,
-                'created_at' => $now,
-                'updated_at' => $now,
+                'component_id'        => $componentId,
+                'type'                => $type,
+                'fan_count'           => $fan_count,
+                'compatible_sockets'  => $compatible_sockets,
+                'max_tdp'             => $max_tdp,
+                'height_mm'           => $height_mm,
+                'created_at'          => $now,
+                'updated_at'          => $now,
             ]);
         }
     }

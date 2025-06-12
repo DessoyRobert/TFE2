@@ -6,12 +6,11 @@ use App\Models\Ram;
 
 class RamController extends Controller
 {
-    // GET /rams
     public function index()
     {
         return Ram::with('component.brand')->get()->map(function ($ram) {
             return [
-                'id' => $ram->id,
+                'id' => $ram->component_id,
                 'component_id' => $ram->component_id,
                 'name' => $ram->component->name ?? '',
                 'brand' => $ram->component->brand->name ?? '',
@@ -26,13 +25,12 @@ class RamController extends Controller
         })->values();
     }
 
-    // GET /rams/{ram}
     public function show(Ram $ram)
     {
         $ram->load('component.brand');
 
         return response()->json([
-            'id' => $ram->id,
+            'id' => $ram->component_id,
             'component_id' => $ram->component_id,
             'name' => $ram->component->name ?? '',
             'brand' => $ram->component->brand->name ?? '',

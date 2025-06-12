@@ -11,7 +11,7 @@ class CpuController extends Controller
     {
         return Cpu::with('component.brand')->get()->map(function ($cpu) {
             return [
-                'id' => $cpu->id,
+                'id' => $cpu->component_id, 
                 'component_id' => $cpu->component_id,
                 'name' => $cpu->component->name ?? '',
                 'brand' => $cpu->component->brand->name ?? '',
@@ -32,7 +32,7 @@ class CpuController extends Controller
     {
         $cpu->load('component.brand');
         return response()->json([
-            'id' => $cpu->id,
+            'id' => $cpu->component_id, 
             'component_id' => $cpu->component_id,
             'name' => $cpu->component->name ?? '',
             'brand' => $cpu->component->brand->name ?? '',

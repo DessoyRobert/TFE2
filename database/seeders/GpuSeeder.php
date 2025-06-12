@@ -14,38 +14,41 @@ class GpuSeeder extends Seeder
         $categoryId = DB::table('categories')->where('name', 'like', '%gpu%')->value('id');
 
         $gpus = [
-            ['RTX 3060 Ti', '8GB GDDR6', 1410, 1665, 'NVIDIA'],
-            ['RX 6700 XT', '12GB GDDR6', 2321, 2581, 'AMD'],
-            ['RTX 3080', '10GB GDDR6X', 1440, 1710, 'NVIDIA'],
-            ['RX 7900 XT', '20GB GDDR6', 2000, 2400, 'AMD'],
-            ['RTX 4060 Ti', '8GB GDDR6', 2310, null, 'NVIDIA'],
-            ['RX 6600', '8GB GDDR6', null, 2491, 'AMD'],
-            ['RTX 4070', '12GB GDDR6X', 1920, 2475, 'NVIDIA'],
-            ['RX 7800 XT', '16GB GDDR6', 2124, 2430, 'AMD'],
-            ['RTX 4090', '24GB GDDR6X', 2235, 2520, 'NVIDIA'],
-            ['RX 7600', '8GB GDDR6', 1720, 2655, 'AMD'],
+            // name, chipset, memory, base_clock, boost_clock, length_mm, price, brand
+            ['NVIDIA RTX 3060 Ti', 'RTX 3060 Ti', 8, 1410, 1665, 242, 369.99, 'NVIDIA'],
+            ['NVIDIA RTX 3070', 'RTX 3070', 8, 1500, 1725, 242, 479.99, 'NVIDIA'],
+            ['AMD RX 6700 XT', 'RX 6700 XT', 12, 2321, 2581, 267, 359.99, 'AMD'],
+            ['AMD RX 6800', 'RX 6800', 16, 1700, 2105, 267, 499.00, 'AMD'],
+            ['NVIDIA RTX 4090', 'RTX 4090', 24, 2235, 2520, 304, 1999.00, 'NVIDIA'],
+            ['AMD RX 7900 XTX', 'RX 7900 XTX', 24, 1855, 2499, 287, 1199.00, 'AMD'],
+            ['NVIDIA GTX 1660', 'GTX 1660', 6, 1530, 1785, 229, 179.00, 'NVIDIA'],
+            ['AMD RX 6600', 'RX 6600', 8, 1626, 2491, 190, 229.00, 'AMD'],
+            ['NVIDIA RTX 3080', 'RTX 3080', 10, 1440, 1710, 285, 799.00, 'NVIDIA'],
+            ['AMD RX 5700 XT', 'RX 5700 XT', 8, 1605, 1905, 270, 249.99, 'AMD'],
         ];
 
-        foreach ($gpus as [$chipset, $memory, $baseClock, $boostClock, $brandName]) {
+        foreach ($gpus as [$name, $chipset, $memory, $base_clock, $boost_clock, $length_mm, $price, $brandName]) {
             $brandId = DB::table('brands')->where('name', 'like', "%$brandName%")->value('id') ?? 1;
 
             $componentId = DB::table('components')->insertGetId([
-                'name' => $chipset,
+                'name' => $name,
                 'component_type_id' => $typeId,
                 'brand_id' => $brandId,
                 'category_id' => $categoryId,
+                'price' => $price,
                 'created_at' => $now,
                 'updated_at' => $now,
             ]);
 
             DB::table('gpus')->insert([
-                'component_id' => $componentId,
-                'chipset' => $chipset,
-                'memory' => $memory,
-                'base_clock' => $baseClock,
-                'boost_clock' => $boostClock,
-                'created_at' => $now,
-                'updated_at' => $now,
+                'component_id'  => $componentId,
+                'chipset'       => $chipset,
+                'memory'        => $memory,
+                'base_clock'    => $base_clock,
+                'boost_clock'   => $boost_clock,
+                'length_mm'     => $length_mm,
+                'created_at'    => $now,
+                'updated_at'    => $now,
             ]);
         }
     }

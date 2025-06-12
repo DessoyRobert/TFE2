@@ -11,7 +11,7 @@ class GpuController extends Controller
     {
         return Gpu::with('component.brand')->get()->map(function ($gpu) {
             return [
-                'id' => $gpu->id,
+                'id' => $gpu->component_id, 
                 'component_id' => $gpu->component_id,
                 'name' => $gpu->component->name ?? '',
                 'brand' => $gpu->component->brand->name ?? '',
@@ -32,7 +32,7 @@ class GpuController extends Controller
         $gpu->load('component.brand');
 
         return response()->json([
-            'id' => $gpu->id,
+            'id' => $gpu->component_id, 
             'component_id' => $gpu->component_id,
             'name' => $gpu->component->name ?? '',
             'brand' => $gpu->component->brand->name ?? '',

@@ -6,12 +6,11 @@ use App\Models\CaseModel;
 
 class CaseModelController extends Controller
 {
-    // GET /case-models
     public function index()
     {
         return CaseModel::with('component.brand')->get()->map(function ($case) {
             return [
-                'id'                => $case->id,
+                'id'                => $case->component_id,
                 'component_id'      => $case->component_id,
                 'name'              => $case->component->name ?? '',
                 'brand'             => $case->component->brand->name ?? '',
@@ -25,12 +24,11 @@ class CaseModelController extends Controller
         })->values();
     }
 
-    // GET /case-models/{case}
     public function show(CaseModel $case)
     {
         $case->load('component.brand');
         return response()->json([
-            'id'                => $case->id,
+            'id'                => $case->component_id,
             'component_id'      => $case->component_id,
             'name'              => $case->component->name ?? '',
             'brand'             => $case->component->brand->name ?? '',

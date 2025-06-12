@@ -6,12 +6,11 @@ use App\Models\Storage;
 
 class StorageController extends Controller
 {
-    // GET /storages
     public function index()
     {
         return Storage::with('component.brand')->get()->map(function ($s) {
             return [
-                'id' => $s->id,
+                'id' => $s->component_id,
                 'component_id' => $s->component_id,
                 'name' => $s->component->name ?? '',
                 'brand' => $s->component->brand->name ?? '',
@@ -24,13 +23,12 @@ class StorageController extends Controller
         })->values();
     }
 
-    // GET /storages/{storage}
     public function show(Storage $storage)
     {
         $storage->load('component.brand');
 
         return response()->json([
-            'id' => $storage->id,
+            'id' => $storage->component_id,
             'component_id' => $storage->component_id,
             'name' => $storage->component->name ?? '',
             'brand' => $storage->component->brand->name ?? '',

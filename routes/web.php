@@ -20,7 +20,7 @@ Route::get('/', function () {
 });
 
 // Fiche détaillée composant (Inertia, public)
-Route::get('/components/{component}', [ComponentController::class, 'showPage'])->name('components.show');
+Route::get('/components/add/{component}', [ComponentController::class, 'showPage'])->name('components.show');
 
 // Builds publics : consultation/ajout uniquement
 Route::resource('builds', BuildController::class)->only(['index', 'create', 'show']);

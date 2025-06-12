@@ -14,19 +14,20 @@ class CaseSeeder extends Seeder
         $categoryId = DB::table('categories')->where('name', 'like', '%case%')->value('id');
 
         $cases = [
-            ['NZXT H510', 'ATX', 381, 165, 'ATX', 4, 'NZXT'],
-            ['Fractal Design Meshify C', 'ATX', 315, 172, 'ATX', 6, 'Fractal Design'],
-            ['Cooler Master NR200', 'Mini-ITX', 330, 155, 'SFX', 5, 'Cooler Master'],
-            ['Phanteks Eclipse P400A', 'ATX', 420, 160, 'ATX', 6, 'Phanteks'],
-            ['Corsair 4000D Airflow', 'ATX', 360, 170, 'ATX', 6, 'Corsair'],
-            ['Lian Li PC-O11 Dynamic', 'ATX', 420, 155, 'ATX', 9, 'Lian Li'],
-            ['be quiet! Pure Base 500DX', 'ATX', 369, 190, 'ATX', 5, 'be quiet!'],
-            ['Thermaltake Core V21', 'Micro-ATX', 350, 185, 'ATX', 6, 'Thermaltake'],
-            ['InWin A1 Plus', 'Mini-ITX', 320, 160, 'SFX', 3, 'InWin'],
-            ['SilverStone SG13', 'Mini-ITX', 270, 61, 'SFX', 2, 'SilverStone'],
+            // name, form_factor, max_gpu_length, max_cooler_height, psu_form_factor, fan_mounts, price, brand
+            ['NZXT H510', 'ATX', 381, 165, 'ATX', 4, 79.99, 'NZXT'],
+            ['Fractal Design Meshify C', 'ATX', 315, 170, 'ATX', 6, 89.99, 'Fractal Design'],
+            ['Corsair 4000D', 'ATX', 360, 170, 'ATX', 4, 84.99, 'Corsair'],
+            ['be quiet! Pure Base 500', 'ATX', 369, 190, 'ATX', 5, 89.99, 'be quiet!'],
+            ['Cooler Master NR200', 'Mini-ITX', 330, 155, 'SFX', 7, 99.99, 'Cooler Master'],
+            ['Phanteks Eclipse P400A', 'ATX', 420, 160, 'ATX', 6, 84.99, 'Phanteks'],
+            ['Lian Li PC-O11', 'ATX', 420, 155, 'ATX', 9, 129.99, 'Lian Li'],
+            ['Thermaltake Core V21', 'Micro-ATX', 350, 185, 'ATX', 6, 54.99, 'Thermaltake'],
+            ['Fractal Design Define 7', 'ATX', 491, 185, 'ATX', 7, 169.99, 'Fractal Design'],
+            ['NZXT H210', 'Mini-ITX', 325, 165, 'SFX', 4, 89.99, 'NZXT'],
         ];
 
-        foreach ($cases as [$name, $formFactor, $gpuLength, $coolerHeight, $psuForm, $fanMounts, $brandName]) {
+        foreach ($cases as [$name, $form_factor, $max_gpu_length, $max_cooler_height, $psu_form_factor, $fan_mounts, $price, $brandName]) {
             $brandId = DB::table('brands')->where('name', 'like', "%$brandName%")->value('id') ?? 1;
 
             $componentId = DB::table('components')->insertGetId([
@@ -34,19 +35,20 @@ class CaseSeeder extends Seeder
                 'component_type_id' => $typeId,
                 'brand_id' => $brandId,
                 'category_id' => $categoryId,
+                'price' => $price,
                 'created_at' => $now,
                 'updated_at' => $now,
             ]);
 
             DB::table('case_models')->insert([
-                'component_id' => $componentId,
-                'form_factor' => $formFactor,
-                'max_gpu_length' => $gpuLength,
-                'max_cooler_height' => $coolerHeight,
-                'psu_form_factor' => $psuForm,
-                'fan_mounts' => $fanMounts,
-                'created_at' => $now,
-                'updated_at' => $now,
+                'component_id'      => $componentId,
+                'form_factor'       => $form_factor,
+                'max_gpu_length'    => $max_gpu_length,
+                'max_cooler_height' => $max_cooler_height,
+                'psu_form_factor'   => $psu_form_factor,
+                'fan_mounts'        => $fan_mounts,
+                'created_at'        => $now,
+                'updated_at'        => $now,
             ]);
         }
     }

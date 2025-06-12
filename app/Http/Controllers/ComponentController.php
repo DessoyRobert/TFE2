@@ -42,7 +42,7 @@ class ComponentController extends Controller
             'brand', 'type', 'cpu', 'gpu', 'ram',
             'motherboard', 'storage', 'psu', 'cooler', 'casemodel'
         ]);
-        return \Inertia\Inertia::render('Components/Show', [
+        return \Inertia\Inertia::render('Components/ShowAdd', [
             'component' => $component,
             'type' => strtolower(optional($component->type)->name ?? ''),
         ]);

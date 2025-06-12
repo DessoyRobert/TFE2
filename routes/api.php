@@ -15,7 +15,7 @@ use App\Http\Controllers\CaseModelController;
 use App\Http\Controllers\BrandController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\BuildController;
-
+use App\Http\Controllers\Api\BuildValidationTempController as BuildValidationTempController;
 // Admin : CRUD sécurisé
 use App\Http\Controllers\Admin\ComponentController as AdminComponentController;
 use App\Http\Controllers\Admin\CpuController as AdminCpuController;
@@ -55,6 +55,9 @@ Route::get('categories', [CategoryController::class, 'index']);
 Route::get('categories/{category}', [CategoryController::class, 'show']);
 Route::get('builds', [BuildController::class, 'index']);
 Route::get('builds/{build}', [BuildController::class, 'show']);
+// Check build temps
+
+Route::post('builds/validate-temp', BuildValidationTempController::class);
 
 // ADMIN API ROUTES (CRUD protégé par auth + is_admin)
 Route::middleware(['auth:sanctum', 'is_admin'])->group(function () {

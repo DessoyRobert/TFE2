@@ -17,7 +17,7 @@ public function run()
         ComponentTypeSeeder::class,
         CategorySeeder::class,
         BrandSeeder::class,
-        ComponentSeeder::class,
+        //ComponentSeeder::class,
         CpuSeeder::class,
         GpuSeeder::class,
         RamSeeder::class,

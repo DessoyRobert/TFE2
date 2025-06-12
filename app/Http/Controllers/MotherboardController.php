@@ -6,12 +6,11 @@ use App\Models\Motherboard;
 
 class MotherboardController extends Controller
 {
-    // GET /motherboards
     public function index()
     {
         return Motherboard::with('component.brand')->get()->map(function ($mb) {
             return [
-                'id' => $mb->id,
+                'id' => $mb->component_id,
                 'component_id' => $mb->component_id,
                 'name' => $mb->component->name ?? '',
                 'brand' => $mb->component->brand->name ?? '',
@@ -26,13 +25,12 @@ class MotherboardController extends Controller
         })->values();
     }
 
-    // GET /motherboards/{motherboard}
     public function show(Motherboard $motherboard)
     {
         $motherboard->load('component.brand');
 
         return response()->json([
-            'id' => $motherboard->id,
+            'id' => $motherboard->component_id,
             'component_id' => $motherboard->component_id,
             'name' => $motherboard->component->name ?? '',
             'brand' => $motherboard->component->brand->name ?? '',

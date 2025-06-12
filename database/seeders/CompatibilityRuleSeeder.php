@@ -9,7 +9,9 @@ class CompatibilityRuleSeeder extends Seeder
 {
     public function run(): void
     {
-        DB::table('compatibility_rules')->insert([
+        $now = now();
+        $rules = [
+            // CPU ↔ Motherboard : socket
             [
                 'component_type_a_id' => $this->getTypeId('cpu'),
                 'component_type_b_id' => $this->getTypeId('motherboard'),
@@ -18,9 +20,10 @@ class CompatibilityRuleSeeder extends Seeder
                 'field_b'             => 'socket',
                 'operator'            => '=',
                 'description'         => 'Le socket du CPU doit correspondre à celui de la carte mère.',
-                'created_at'          => now(),
-                'updated_at'          => now(),
+                'created_at'          => $now,
+                'updated_at'          => $now,
             ],
+            // RAM ↔ Motherboard : type RAM (nécessite ram_type dans motherboard)
             [
                 'component_type_a_id' => $this->getTypeId('ram'),
                 'component_type_b_id' => $this->getTypeId('motherboard'),
@@ -29,21 +32,84 @@ class CompatibilityRuleSeeder extends Seeder
                 'field_b'             => 'ram_type',
                 'operator'            => '=',
                 'description'         => 'La RAM doit être du bon type (DDR4, DDR5...) pour la carte mère.',
-                'created_at'          => now(),
-                'updated_at'          => now(),
+                'created_at'          => $now,
+                'updated_at'          => $now,
             ],
+            // Cooler ↔ CPU : compatibilité socket
+            [
+                'component_type_a_id' => $this->getTypeId('cooler'),
+                'component_type_b_id' => $this->getTypeId('cpu'),
+                'rule_type'           => 'hard',
+                'field_a'             => 'compatible_sockets',
+                'field_b'             => 'socket',
+                'operator'            => 'LIKE',
+                'description'         => 'Le ventirad doit être compatible avec le socket du CPU.',
+                'created_at'          => $now,
+                'updated_at'          => $now,
+            ],
+            // Motherboard ↔ CaseModel : form factor
+            [
+                'component_type_a_id' => $this->getTypeId('motherboard'),
+                'component_type_b_id' => $this->getTypeId('case'),
+                'rule_type'           => 'hard',
+                'field_a'             => 'form_factor',
+                'field_b'             => 'form_factor',
+                'operator'            => '=',
+                'description'         => 'Le format de la carte mère doit être supporté par le boîtier.',
+                'created_at'          => $now,
+                'updated_at'          => $now,
+            ],
+            // Cooler ↔ CaseModel : hauteur ventirad vs max case
+            [
+                'component_type_a_id' => $this->getTypeId('cooler'),
+                'component_type_b_id' => $this->getTypeId('case'),
+                'rule_type'           => 'hard',
+                'field_a'             => 'height_mm',
+                'field_b'             => 'max_cooler_height',
+                'operator'            => '<=',
+                'description'         => 'La hauteur du ventirad ne doit pas dépasser la hauteur max supportée par le boîtier.',
+                'created_at'          => $now,
+                'updated_at'          => $now,
+            ],
+            // GPU ↔ CaseModel : longueur GPU vs max GPU boîtier
+            [
+                'component_type_a_id' => $this->getTypeId('gpu'),
+                'component_type_b_id' => $this->getTypeId('case'),
+                'rule_type'           => 'hard',
+                'field_a'             => 'length_mm', // À adapter si tu ajoutes ce champ dans gpus !
+                'field_b'             => 'max_gpu_length',
+                'operator'            => '<=',
+                'description'         => 'La longueur de la carte graphique ne doit pas dépasser la limite du boîtier.',
+                'created_at'          => $now,
+                'updated_at'          => $now,
+            ],
+            // PSU ↔ CaseModel : format PSU
+            [
+                'component_type_a_id' => $this->getTypeId('psu'),
+                'component_type_b_id' => $this->getTypeId('case'),
+                'rule_type'           => 'hard',
+                'field_a'             => 'form_factor',
+                'field_b'             => 'psu_form_factor',
+                'operator'            => '=',
+                'description'         => "Le format d'alimentation doit être compatible avec le boîtier.",
+                'created_at'          => $now,
+                'updated_at'          => $now,
+            ],
+            // GPU ↔ PSU : puissance minimale (soft)
             [
                 'component_type_a_id' => $this->getTypeId('gpu'),
                 'component_type_b_id' => $this->getTypeId('psu'),
                 'rule_type'           => 'soft',
-                'field_a'             => 'recommended_wattage',
+                'field_a'             => 'recommended_wattage', // à renseigner dans la table gpus si besoin
                 'field_b'             => 'wattage',
                 'operator'            => '<=',
-                'description'         => 'La puissance de l’alim peut être insuffisante pour la carte graphique.',
-                'created_at'          => now(),
-                'updated_at'          => now(),
+                'description'         => "La puissance de l'alimentation peut être insuffisante pour la carte graphique.",
+                'created_at'          => $now,
+                'updated_at'          => $now,
             ],
-        ]);
+        ];
+
+        DB::table('compatibility_rules')->insert($rules);
     }
 
     private function getTypeId(string $typeName): int

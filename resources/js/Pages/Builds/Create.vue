@@ -1,35 +1,24 @@
 <script setup>
-// Imports Vue
 import { ref, computed, watch } from 'vue'
 import axios from 'axios'
-
-// Inertia router (navigation SPA)
 import { router } from '@inertiajs/vue3'
 
-// Pinia store pour les validations dynamiques
+// Pinia stores
+import { useBuildStore } from '@/stores/buildStore'
 import { useBuildValidatorStore } from '@/stores/useBuildValidatorStore'
 
 // Composants internes
 import BuildFormFields from '@/Components/BuildFormFields.vue'
 import ComponentSelectorTable from '@/Components/ComponentSelectorTable.vue'
 
-// Store de validation
+// Stores
+const buildStore = useBuildStore()
 const validatorStore = useBuildValidatorStore()
 
-// Structure du build en cours de création
-const build = ref({
-  name: '',
-  description: '',
-  imgUrl: '',
-  cpu: null,
-  gpu: null,
-  ram: null,
-  motherboard: null,
-  storage: null,
-  psu: null,
-  cooler: null,
-  case_model: null,
-})
+// Champs du build hors sélection (infos de base du build, pas les composants)
+const buildName = ref('')
+const buildDescription = ref('')
+const buildImgUrl = ref('')
 
 // Définition des types de composants
 const componentTypes = [
@@ -46,14 +35,13 @@ const componentTypes = [
 // Calcul automatique du prix total du build
 const autoPrice = computed(() => {
   return componentTypes.reduce((total, t) => {
-    const comp = build.value[t.key]
+    const comp = buildStore.build[t.key]
     return total + (comp?.price ? Number(comp.price) : 0)
   }, 0)
 })
 
-// Gestion de l'ouverture/fermeture du sélecteur de composants
+// Gestion du sélecteur de composants
 const selectorKey = ref(null)
-
 function handleSelect(key) {
   selectorKey.value = selectorKey.value === key ? null : key
 }
@@ -61,20 +49,18 @@ function handleSelect(key) {
 // Envoi du build via l’API
 async function submitBuild() {
   const payload = {
-    name: build.value.name,
-    description: build.value.description,
-    imgUrl: build.value.imgUrl,
+    name: buildName.value,
+    description: buildDescription.value,
+    imgUrl: buildImgUrl.value,
     price: autoPrice.value,
     components: [],
   }
-
   for (const type of componentTypes) {
-    const comp = build.value[type.key]
+    const comp = buildStore.build[type.key]
     if (comp && comp.component_id) {
       payload.components.push({ component_id: comp.component_id })
     }
   }
-
   try {
     await axios.post('/api/builds', payload)
     router.visit('/')
@@ -87,7 +73,7 @@ async function submitBuild() {
 // Validation dynamique (via store)
 const selectedComponentIds = computed(() =>
   componentTypes
-    .map(type => build.value[type.key]?.component_id)
+    .map(type => buildStore.build[type.key]?.component_id)
     .filter(Boolean)
 )
 
@@ -107,9 +93,9 @@ watch(selectedComponentIds, (ids) => {
     <div class="bg-white p-6 rounded-xl shadow-md border space-y-4">
       <h1 class="text-2xl font-bold text-darknavy">Créer un build</h1>
       <BuildFormFields
-        v-model:name="build.name"
-        v-model:description="build.description"
-        v-model:imgUrl="build.imgUrl"
+        v-model:name="buildName"
+        v-model:description="buildDescription"
+        v-model:imgUrl="buildImgUrl"
         :auto-price="autoPrice"
       />
     </div>
@@ -142,17 +128,17 @@ watch(selectedComponentIds, (ids) => {
             <td class="px-4 py-3 font-medium">{{ type.label }}</td>
             <td class="px-4 py-3 flex items-center gap-3">
               <span class="text-darknavy font-medium">
-                {{ build[type.key]?.name ?? 'Aucun sélectionné' }}
+                {{ buildStore.build[type.key]?.name ?? 'Aucun sélectionné' }}
               </span>
               <button
                 class="bg-primary hover:bg-cyan text-white text-xs px-3 py-1 rounded-xl"
                 @click="handleSelect(type.key)"
               >
-                {{ build[type.key] ? 'Changer' : '+ Ajouter' }}
+                {{ buildStore.build[type.key] ? 'Changer' : '+ Ajouter' }}
               </button>
             </td>
             <td class="px-4 py-3 text-darkgray">
-              {{ build[type.key]?.price !== undefined ? `${build[type.key].price} €` : '—' }}
+              {{ buildStore.build[type.key]?.price !== undefined ? `${buildStore.build[type.key].price} €` : '—' }}
             </td>
           </tr>
         </tbody>
@@ -167,7 +153,7 @@ watch(selectedComponentIds, (ids) => {
       <ComponentSelectorTable
         :endpoint="componentTypes.find(t => t.key === selectorKey)?.endpoint"
         @select="(item) => {
-          build[selectorKey] = item
+          buildStore.build[selectorKey] = item
           selectorKey = null
         }"
       />

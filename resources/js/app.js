@@ -5,6 +5,7 @@ import { createInertiaApp } from '@inertiajs/vue3'
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers'
 import { createApp, h } from 'vue'
 import { createPinia } from 'pinia'
+import piniaPluginPersistedstate from 'pinia-plugin-persistedstate'
 import { ZiggyVue } from '../../vendor/tightenco/ziggy'
 
 // Importation des layouts globaux
@@ -28,7 +29,7 @@ createInertiaApp({
         component.layout = GuestLayout
       } else if (name.startsWith('Admin/')) {
         component.layout = AdminLayout
-      } else if (name.startsWith('Dashboard') /*|| name.startsWith('Builds')*/) {
+      } else if (name.startsWith('Dashboard')) {
         component.layout = AuthenticatedLayout
       } else {
         component.layout = DefaultLayout
@@ -38,9 +39,14 @@ createInertiaApp({
     return component
   },
   setup({ el, App, props, plugin }) {
+    // === PATCH PERSISTENCE PINIA ===
+    const pinia = createPinia()
+    pinia.use(piniaPluginPersistedstate)
+    // ==============================
+
     return createApp({ render: () => h(App, props) })
       .use(plugin)
-      .use(createPinia())
+      .use(pinia) // <= instance pinia avec la persistance activée
       .use(ZiggyVue)
       .mount(el)
   },
