@@ -8,6 +8,7 @@ use Inertia\Inertia;
 use App\Http\Controllers\ComponentController;
 use App\Http\Controllers\BuildController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\User\UserDashboardController;
 
 // Pages publiques
 Route::get('/', function () {
@@ -26,9 +27,12 @@ Route::get('/components/add/{component}', [ComponentController::class, 'showPage
 Route::resource('builds', BuildController::class)->only(['index', 'create', 'show']);
 
 // Dashboard utilisateur
-Route::get('/dashboard', function () {
-    return Inertia::render('Dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
+
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/dashboard', [UserDashboardController::class, 'index'])->name('dashboard');
+});
+
+
 
 // Gestion du profil utilisateur
 Route::middleware('auth')->group(function () {

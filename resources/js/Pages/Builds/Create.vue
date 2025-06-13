@@ -1,3 +1,4 @@
+
 <script setup>
 import { ref, computed, watch } from 'vue'
 import axios from 'axios'
@@ -11,16 +12,13 @@ import { useBuildValidatorStore } from '@/stores/useBuildValidatorStore'
 import BuildFormFields from '@/Components/BuildFormFields.vue'
 import ComponentSelectorTable from '@/Components/ComponentSelectorTable.vue'
 
-// Stores
 const buildStore = useBuildStore()
 const validatorStore = useBuildValidatorStore()
 
-// Champs du build hors sélection (infos de base du build, pas les composants)
 const buildName = ref('')
 const buildDescription = ref('')
 const buildImgUrl = ref('')
 
-// Définition des types de composants
 const componentTypes = [
   { key: 'cpu', label: 'Processeur', endpoint: '/api/cpus' },
   { key: 'gpu', label: 'Carte graphique', endpoint: '/api/gpus' },
@@ -32,7 +30,6 @@ const componentTypes = [
   { key: 'case_model', label: 'Boîtier', endpoint: '/api/case-models' },
 ]
 
-// Calcul automatique du prix total du build
 const autoPrice = computed(() => {
   return componentTypes.reduce((total, t) => {
     const comp = buildStore.build[t.key]
@@ -40,13 +37,21 @@ const autoPrice = computed(() => {
   }, 0)
 })
 
-// Gestion du sélecteur de composants
 const selectorKey = ref(null)
 function handleSelect(key) {
   selectorKey.value = selectorKey.value === key ? null : key
 }
 
-// Envoi du build via l’API
+function removeComponent(key) {
+  buildStore.build[key] = null
+}
+
+function resetBuild() {
+  for (const type of componentTypes) {
+    buildStore.build[type.key] = null
+  }
+}
+
 async function submitBuild() {
   const payload = {
     name: buildName.value,
@@ -70,7 +75,6 @@ async function submitBuild() {
   }
 }
 
-// Validation dynamique (via store)
 const selectedComponentIds = computed(() =>
   componentTypes
     .map(type => buildStore.build[type.key]?.component_id)
@@ -111,6 +115,7 @@ watch(selectedComponentIds, (ids) => {
 
     <!-- Tableau des composants sélectionnés -->
     <div class="bg-white p-4 rounded-xl shadow-md border">
+      
       <table class="w-full text-sm">
         <thead class="text-darknavy font-semibold bg-lightgray">
           <tr>
@@ -136,6 +141,13 @@ watch(selectedComponentIds, (ids) => {
               >
                 {{ buildStore.build[type.key] ? 'Changer' : '+ Ajouter' }}
               </button>
+              <button
+                v-if="buildStore.build[type.key]"
+                @click="removeComponent(type.key)"
+                class="bg-red-500 hover:bg-red-600 text-white text-xs px-3 py-1 rounded-xl"
+              >
+                Supprimer
+              </button>
             </td>
             <td class="px-4 py-3 text-darkgray">
               {{ buildStore.build[type.key]?.price !== undefined ? `${buildStore.build[type.key].price} €` : '—' }}
@@ -143,30 +155,65 @@ watch(selectedComponentIds, (ids) => {
           </tr>
         </tbody>
       </table>
+      <div class="text-right text-lg font-bold text-darknavy mt-4">
+        Prix total : {{ autoPrice }} €
+      </div>
     </div>
 
-    <!-- Sélecteur de composant -->
-    <div
-      v-if="selectorKey && componentTypes.find(t => t.key === selectorKey)?.endpoint"
-      class="bg-white border shadow-md rounded-xl p-4"
-    >
-      <ComponentSelectorTable
-        :endpoint="componentTypes.find(t => t.key === selectorKey)?.endpoint"
-        @select="(item) => {
-          buildStore.build[selectorKey] = item
-          selectorKey = null
-        }"
-      />
-    </div>
+    <!-- Sélecteur en modale -->
+    <Teleport to="body">
+      <transition name="fade">
+        <div
+          v-if="selectorKey && componentTypes.find(t => t.key === selectorKey)?.endpoint"
+          class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+        >
+          <div class="bg-white p-6 rounded-xl shadow-lg w-full max-w-4xl relative animate-fade-in">
+            <button
+              class="absolute top-4 right-4 text-gray-500 hover:text-black text-lg"
+              @click="selectorKey = null"
+            >
+              ✕
+            </button>
+            <ComponentSelectorTable
+              :endpoint="componentTypes.find(t => t.key === selectorKey)?.endpoint"
+              @select="(item) => {
+                buildStore.build[selectorKey] = item
+                selectorKey = null
+              }"
+            />
+          </div>
+        </div>
+      </transition>
+    </Teleport>
+<!-- Boutons reset et créer -->
+<div class="flex justify-between mt-6">
+  <!-- Bouton Réinitialiser -->
+  <button
+    @click="resetBuild"
+    class="bg-red-600 text-white px-6 py-2 rounded-xl hover:bg-red-700 transition"
+  >
+    Réinitialiser le build
+  </button>
 
-    <!-- Bouton de création -->
-    <div class="flex justify-end">
-      <button
-        class="bg-darknavy text-white px-6 py-2 rounded-xl hover:bg-violetdark transition"
-        @click="submitBuild"
-      >
-        Créer le build
-      </button>
-    </div>
+  <!-- Bouton Créer -->
+  <button
+    @click="submitBuild"
+    class="bg-darknavy text-white px-6 py-2 rounded-xl hover:bg-violetdark transition"
+    :disabled="selectedComponentIds.length < componentTypes.length"
+    :class="{ 'opacity-50 cursor-not-allowed': selectedComponentIds.length < componentTypes.length }"
+  >
+    Créer le build
+  </button>
+</div>
+
   </div>
 </template>
+
+<style scoped>
+.fade-enter-active, .fade-leave-active {
+  transition: opacity 0.25s ease;
+}
+.fade-enter-from, .fade-leave-to {
+  opacity: 0;
+}
+</style>
