@@ -1,12 +1,20 @@
 <script setup>
 import { router } from '@inertiajs/vue3'
 import GoBackButton from '@/Components/GoBackButton.vue'
-const props = defineProps({ categories: Array })
+
+// On attend maintenant un objet paginé !
+const props = defineProps({ categories: Object })
 
 function destroy(id) {
   if (confirm('Confirmer la suppression ?')) {
     router.delete(route('admin.categories.destroy', id))
   }
+}
+
+// Pagination
+function goToPage(url) {
+  if (!url) return
+  router.visit(url)
 }
 </script>
 
@@ -24,7 +32,7 @@ function destroy(id) {
         </tr>
       </thead>
       <tbody>
-        <tr v-for="category in categories" :key="category.id" class="border-b last:border-0 hover:bg-lightgray/50">
+        <tr v-for="category in categories.data" :key="category.id" class="border-b last:border-0 hover:bg-lightgray/50">
           <td class="px-4 py-2">{{ category.name }}</td>
           <td class="px-4 py-2 space-x-2">
             <a :href="route('admin.categories.edit', category.id)"
@@ -35,5 +43,17 @@ function destroy(id) {
         </tr>
       </tbody>
     </table>
+
+    <!-- Pagination -->
+    <div class="flex gap-2 mt-4 justify-center">
+      <button
+        v-for="link in categories.links"
+        :key="link.label"
+        :disabled="!link.url || link.active"
+        @click="goToPage(link.url)"
+        v-html="link.label"
+        class="px-2 py-1 border rounded"
+      />
+    </div>
   </div>
 </template>

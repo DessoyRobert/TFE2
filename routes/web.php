@@ -54,9 +54,10 @@ Route::middleware(['auth', 'is_admin'])
         Route::get('/dashboard', [\App\Http\Controllers\Admin\DashboardController::class, 'index'])->name('dashboard');
          Route::resource('components', \App\Http\Controllers\Admin\ComponentController::class);
          Route::resource('builds', \App\Http\Controllers\Admin\BuildController::class);
-        // Route::resource('users', \App\Http\Controllers\Admin\UserController::class);
+         Route::resource('users', \App\Http\Controllers\Admin\UserController::class);
          Route::resource('brands', \App\Http\Controllers\Admin\BrandController::class);
          Route::resource('categories', \App\Http\Controllers\Admin\CategoryController::class);
+         route::resource('component-types', \App\Http\Controllers\Admin\ComponentTypeController::class);
     });
 
 // Auth (login/register/...)

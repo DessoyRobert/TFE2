@@ -5,12 +5,15 @@
     @click="goBack"
   >
     <span aria-hidden="true">←</span>
-    <span>Retour</span>
+    <span>Dashboard</span>
   </button>
 </template>
 
 <script setup>
+import { router } from '@inertiajs/vue3'
+
 function goBack() {
-  window.history.length > 1 ? window.history.back() : window.location.assign('/')
+  router.visit('/admin/dashboard')
 }
+
 </script>

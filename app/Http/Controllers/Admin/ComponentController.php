@@ -10,7 +10,7 @@ class ComponentController extends Controller
 {
         public function index()
     {
-        $components = Component::with(['brand', 'type'])->get();
+        $components = Component::with(['brand', 'type'])->paginate(15);
         return Inertia::render('Admin/Components/Index', [
             'components' => $components,
         ]);

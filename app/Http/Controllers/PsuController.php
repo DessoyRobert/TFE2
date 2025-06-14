@@ -8,7 +8,8 @@ class PsuController extends Controller
 {
     public function index()
     {
-        return Psu::with('component.brand')->get()->map(function ($psu) {
+        $collection = Psu::with('component.brand')->paginate(15);
+    $collection->getCollection()->transform(function ($psu) {
             return [
                 'id' => $psu->component_id,
                 'component_id' => $psu->component_id,
@@ -22,6 +23,7 @@ class PsuController extends Controller
                 'form_factor' => $psu->form_factor ?? '',
             ];
         })->values();
+    return $collection;
     }
 
     public function show(Psu $psu)

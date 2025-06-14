@@ -8,7 +8,8 @@ class StorageController extends Controller
 {
     public function index()
     {
-        return Storage::with('component.brand')->get()->map(function ($s) {
+        $collection = Storage::with('component.brand')->paginate(15);
+    $collection->getCollection()->transform(function ($s) {
             return [
                 'id' => $s->component_id,
                 'component_id' => $s->component_id,
@@ -21,6 +22,7 @@ class StorageController extends Controller
                 'interface' => $s->interface ?? '',
             ];
         })->values();
+    return $collection;
     }
 
     public function show(Storage $storage)

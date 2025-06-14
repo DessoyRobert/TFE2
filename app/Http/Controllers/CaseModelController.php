@@ -8,7 +8,8 @@ class CaseModelController extends Controller
 {
     public function index()
     {
-        return CaseModel::with('component.brand')->get()->map(function ($case) {
+        $collection = CaseModel::with('component.brand')->paginate(15);
+    $collection->getCollection()->transform(function ($case) {
             return [
                 'id'                => $case->component_id,
                 'component_id'      => $case->component_id,
@@ -22,6 +23,7 @@ class CaseModelController extends Controller
                 'max_cooler_height' => $case->max_cooler_height,
             ];
         })->values();
+    return $collection;
     }
 
     public function show(CaseModel $case)

@@ -2,9 +2,10 @@
 // Import Inertia
 import { router } from '@inertiajs/vue3'
 import GoBackButton from '@/Components/GoBackButton.vue'
+
 // Props reçues depuis Inertia
-defineProps({
-  components: Array
+const props = defineProps({
+  components: Object // <-- Change Array → Object (pagination)
 })
 
 // Suppression d’un composant avec confirmation
@@ -13,10 +14,17 @@ function destroy(id) {
     router.delete(route('admin.components.destroy', id))
   }
 }
+
+// Pagination
+function goToPage(url) {
+  if (!url) return
+  router.visit(url)
+}
 </script>
 
 <template>
-  <div class="max-w-6xl mx-auto py-10 space-y-8"><GoBackButton class="mb-4" />
+  <div class="max-w-6xl mx-auto py-10 space-y-8">
+    <GoBackButton class="mb-4" />
     <h1 class="text-2xl font-bold text-darknavy">Liste des composants</h1>
 
     <!-- Lien pour ajouter un composant -->
@@ -40,7 +48,7 @@ function destroy(id) {
       </thead>
       <tbody>
         <tr
-          v-for="component in components"
+          v-for="component in components.data"
           :key="component.id"
           class="border-b last:border-0 hover:bg-lightgray/50 transition"
         >
@@ -56,7 +64,6 @@ function destroy(id) {
             >
               Éditer
             </a>
-
             <!-- Formulaire de suppression -->
             <form
               :action="route('admin.components.destroy', component.id)"
@@ -76,5 +83,17 @@ function destroy(id) {
         </tr>
       </tbody>
     </table>
+
+    <!-- Pagination -->
+    <div class="flex gap-2 mt-4 justify-center">
+      <button
+        v-for="link in components.links"
+        :key="link.label"
+        :disabled="!link.url || link.active"
+        @click="goToPage(link.url)"
+        v-html="link.label"
+        class="px-2 py-1 border rounded"
+      />
+    </div>
   </div>
 </template>

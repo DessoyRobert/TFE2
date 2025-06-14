@@ -3,8 +3,8 @@
 import { router } from '@inertiajs/vue3'
 
 // Props reçues depuis Inertia
-defineProps({
-  components: Array
+const props = defineProps({
+  components: Object
 })
 
 // Suppression d’un composant avec confirmation
@@ -12,6 +12,12 @@ function destroy(id) {
   if (confirm('Confirmer la suppression de ce composant ?')) {
     router.delete(route('components.destroy', id))
   }
+}
+
+// Pagination
+function goToPage(url) {
+  if (!url) return
+  router.visit(url)
 }
 </script>
 
@@ -40,7 +46,7 @@ function destroy(id) {
       </thead>
       <tbody>
         <tr
-          v-for="component in components"
+          v-for="component in components.data"
           :key="component.id"
           class="border-b last:border-0 hover:bg-lightgray/50 transition"
         >
@@ -76,5 +82,17 @@ function destroy(id) {
         </tr>
       </tbody>
     </table>
+
+    <!-- Pagination -->
+    <div class="flex gap-2 mt-4 justify-center">
+      <button
+        v-for="link in components.links"
+        :key="link.label"
+        :disabled="!link.url || link.active"
+        @click="goToPage(link.url)"
+        v-html="link.label"
+        class="px-2 py-1 border rounded"
+      />
+    </div>
   </div>
 </template>

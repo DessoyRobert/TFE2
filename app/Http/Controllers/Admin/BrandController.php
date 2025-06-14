@@ -10,12 +10,15 @@ use Inertia\Inertia;
 class BrandController extends Controller
 {
     // GET /admin/brands (optionnel pour admin panel)
-    public function index()
+    public function index(Request $request)
     {
+        $brands = Brand::orderBy('id', 'desc')->paginate(15);
+
         return Inertia::render('Admin/Brands/Index', [
-        'brands' => Brand::all(['id', 'name'])
-    ]);
+            'brands' => $brands
+        ]);
     }
+
     public function edit(Brand $brand)
     {
         return \Inertia\Inertia::render('Admin/Brands/Edit', [

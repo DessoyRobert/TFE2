@@ -9,7 +9,8 @@ class CpuController extends Controller
     // GET /cpus
     public function index()
     {
-        return Cpu::with('component.brand')->get()->map(function ($cpu) {
+        $collection = Cpu::with('component.brand')->paginate(15);
+    $collection->getCollection()->transform(function ($cpu) {
             return [
                 'id' => $cpu->component_id, 
                 'component_id' => $cpu->component_id,
@@ -25,6 +26,7 @@ class CpuController extends Controller
                 'tdp' => $cpu->tdp,
             ];
         })->values();
+    return $collection;
     }
 
     // GET /cpus/{cpu}

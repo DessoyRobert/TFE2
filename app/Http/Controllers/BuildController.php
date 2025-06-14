@@ -14,7 +14,7 @@ class BuildController extends Controller
         $search = $request->input('search');
         $builds = Build::with('components.brand')
             ->when($search, fn($q) => $q->where('name', 'ILIKE', "%$search%"))
-            ->get();
+            ->paginate(15);
 
         return Inertia::render('Builds/Index', [
             'builds' => $builds,

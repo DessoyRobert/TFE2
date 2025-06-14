@@ -8,7 +8,8 @@ class RamController extends Controller
 {
     public function index()
     {
-        return Ram::with('component.brand')->get()->map(function ($ram) {
+        $collection = Ram::with('component.brand')->paginate(15);
+    $collection->getCollection()->transform(function ($ram) {
             return [
                 'id' => $ram->component_id,
                 'component_id' => $ram->component_id,
@@ -23,6 +24,7 @@ class RamController extends Controller
                 'cas_latency' => $ram->cas_latency,
             ];
         })->values();
+    return $collection;
     }
 
     public function show(Ram $ram)

@@ -13,9 +13,10 @@ class CategoryController extends Controller
     public function index()
     {
         return Inertia::render('Admin/Categories/Index', [
-            'categories' => Category::all()
+            'categories' => \App\Models\Category::orderBy('id', 'desc')->paginate(15)
         ]);
     }
+
 
     // GET /admin/categories/create
     public function create()

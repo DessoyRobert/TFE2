@@ -8,7 +8,8 @@ class CoolerController extends Controller
 {
     public function index()
     {
-        return Cooler::with('component.brand')->get()->map(function ($cooler) {
+        $collection = Cooler::with('component.brand')->paginate(15);
+    $collection->getCollection()->transform(function ($cooler) {
             return [
                 'id' => $cooler->component_id,
                 'component_id' => $cooler->component_id,
@@ -20,6 +21,7 @@ class CoolerController extends Controller
                 'fan_count' => $cooler->fan_count,
             ];
         })->values();
+    return $collection;
     }
 
     public function show(Cooler $cooler)

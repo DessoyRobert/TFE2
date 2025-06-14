@@ -52,14 +52,14 @@ class CompatibilityRuleSeeder extends Seeder
                 'component_type_a_id' => $this->getTypeId('motherboard'),
                 'component_type_b_id' => $this->getTypeId('case'),
                 'rule_type'           => 'hard',
-                'field_a'             => 'form_factor',
-                'field_b'             => 'form_factor',
-                'operator'            => '=',
+                'field_a' => 'form_factor', // carte mère
+                'field_b' => 'supported_form_factors', // boîtier
+                'operator' => 'LIKE',
                 'description'         => 'Le format de la carte mère doit être supporté par le boîtier.',
                 'created_at'          => $now,
                 'updated_at'          => $now,
             ],
-            // Cooler ↔ CaseModel : hauteur ventirad vs max case
+             //Cooler ↔ CaseModel : hauteur ventirad vs max case
             [
                 'component_type_a_id' => $this->getTypeId('cooler'),
                 'component_type_b_id' => $this->getTypeId('case'),

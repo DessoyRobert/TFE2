@@ -9,7 +9,8 @@ class GpuController extends Controller
     // GET /gpus
     public function index()
     {
-        return Gpu::with('component.brand')->get()->map(function ($gpu) {
+        $collection = Gpu::with('component.brand')->paginate(15);
+    $collection->getCollection()->transform(function ($gpu) {
             return [
                 'id' => $gpu->component_id, 
                 'component_id' => $gpu->component_id,
@@ -24,6 +25,7 @@ class GpuController extends Controller
                 'tdp' => $gpu->tdp ?? null,
             ];
         })->values();
+    return $collection;
     }
 
     // GET /gpus/{gpu}

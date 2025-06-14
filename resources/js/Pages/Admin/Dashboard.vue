@@ -40,11 +40,13 @@ const props = defineProps({ stats: Object })
 
     <!-- Liens rapides -->
     <div class="flex flex-wrap gap-4">
-      <Link href="/admin/users" class="bg-darknavy text-white px-5 py-3 rounded-xl shadow hover:bg-primary transition">Gérer les utilisateurs</Link>
-      <Link href="/admin/builds" class="bg-darknavy text-white px-5 py-3 rounded-xl shadow hover:bg-primary transition">Gérer les builds</Link>
-      <Link href="/admin/components" class="bg-darknavy text-white px-5 py-3 rounded-xl shadow hover:bg-primary transition">Gérer les composants</Link>
+      <Link href="/admin/users" class="bg-darknavy text-white px-5 py-3 rounded-xl shadow hover:bg-primary transition">utilisateurs</Link>
+      <Link href="/admin/builds" class="bg-darknavy text-white px-5 py-3 rounded-xl shadow hover:bg-primary transition">builds</Link>
+      <Link href="/admin/components" class="bg-darknavy text-white px-5 py-3 rounded-xl shadow hover:bg-primary transition">composants</Link>
       <Link href="/admin/brands" class="bg-darknavy text-white px-5 py-3 rounded-xl shadow hover:bg-primary transition">Marques</Link>
       <Link href="/admin/categories" class="bg-darknavy text-white px-5 py-3 rounded-xl shadow hover:bg-primary transition">Catégories</Link>
+      <Link href="/admin/component-types" class="bg-darknavy text-white px-5 py-3 rounded-xl shadow hover:bg-primary transition">Types de composants</Link>
     </div>
   </div>
 </template>
+

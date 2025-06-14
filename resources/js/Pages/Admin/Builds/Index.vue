@@ -1,16 +1,27 @@
 <script setup>
 import { router } from '@inertiajs/vue3'
-defineProps({ builds: Array })
+import { Link } from '@inertiajs/vue3'
 import GoBackButton from '@/Components/GoBackButton.vue'
+
+const props = defineProps({
+  builds: Object // On attend maintenant un objet paginé
+})
+
 function destroy(id) {
   if (confirm('Supprimer ce build ?')) {
     router.delete(route('admin.builds.destroy', id))
   }
 }
+
+function goToPage(url) {
+  if (!url) return
+  router.visit(url)
+}
 </script>
 
 <template>
-  <div class="max-w-6xl mx-auto py-10 space-y-8"><GoBackButton class="mb-4" />
+  <div class="max-w-6xl mx-auto py-10 space-y-8">
+    <GoBackButton class="mb-4" />
     <h1 class="text-2xl font-bold text-darknavy">Gestion des Builds</h1>
     <table class="w-full text-sm bg-white rounded-xl shadow border">
       <thead class="bg-lightgray text-darknavy font-semibold">
@@ -22,7 +33,7 @@ function destroy(id) {
         </tr>
       </thead>
       <tbody>
-        <tr v-for="build in builds" :key="build.id" class="border-b last:border-0 hover:bg-lightgray/50">
+        <tr v-for="build in builds.data" :key="build.id" class="border-b last:border-0 hover:bg-lightgray/50">
           <td class="px-4 py-2 font-medium">{{ build.name }}</td>
           <td class="px-4 py-2">{{ build.description }}</td>
           <td class="px-4 py-2">{{ build.price }} €</td>
@@ -33,5 +44,16 @@ function destroy(id) {
         </tr>
       </tbody>
     </table>
+    <!-- Pagination -->
+    <div class="flex gap-2 mt-4 justify-center">
+      <button
+        v-for="link in builds.links"
+        :key="link.label"
+        :disabled="!link.url || link.active"
+        @click="goToPage(link.url)"
+        v-html="link.label"
+        class="px-2 py-1 border rounded"
+      />
+    </div>
   </div>
 </template>

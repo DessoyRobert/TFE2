@@ -13,7 +13,7 @@ class BuildController extends Controller
     // GET /admin/builds
     public function index()
     {
-        $builds = Build::with('components.brand')->get();
+        $builds = Build::with('components.brand')->paginate(15);
         return Inertia::render('Admin/Builds/Index', [
             'builds' => $builds
         ]);
@@ -24,7 +24,7 @@ class BuildController extends Controller
     {
         $build->load('components.brand');
         // Charger tous les composants pour permettre la sélection/édition
-        $allComponents = Component::with('brand', 'type')->get();
+        $allComponents = Component::with('brand', 'type')->paginate(15);
 
         return Inertia::render('Admin/Builds/Edit', [
             'build' => $build,

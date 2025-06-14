@@ -1,24 +1,46 @@
 <script setup>
-import { ref, onMounted, watch, computed } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import axios from 'axios'
 import { Link } from '@inertiajs/vue3'
 
 const props = defineProps({
-  endpoint: {
-    type: String,
-    required: true
-  }
+  endpoint: { type: String, required: true }
 })
 
 // Emission
 const emit = defineEmits(['select'])
 
-const components = ref([])   // Tous les composants de l'API
+const pagination = ref({
+  data: [],
+  links: [],
+  meta: {}
+})
+const loading = ref(false)
 const search = ref('')
-
-// Tri
 const sortBy = ref('name')
 const sortDesc = ref(false)
+const perPage = 15
+
+async function fetchComponents(page = 1) {
+  loading.value = true
+  try {
+    const response = await axios.get(props.endpoint, {
+      params: {
+        page,
+        per_page: perPage,
+        search: search.value,
+        sortBy: sortBy.value,
+        sortDesc: sortDesc.value
+      }
+    })
+    pagination.value = response.data
+  } catch (error) {
+    console.error('Erreur lors du chargement des composants:', error)
+    pagination.value = { data: [], links: [], meta: {} }
+  } finally {
+    loading.value = false
+  }
+}
 
 function setSort(column) {
   if (sortBy.value === column) {
@@ -27,49 +49,18 @@ function setSort(column) {
     sortBy.value = column
     sortDesc.value = false
   }
+  fetchComponents(1)
 }
 
-// Chargement
-async function fetchComponents() {
-  try {
-    const response = await axios.get(props.endpoint)
-    components.value = response.data
-  } catch (error) {
-    console.error('Erreur lors du chargement des composants:', error)
-    components.value = []
-  }
+function goToPage(link) {
+  if (!link.url || link.active) return
+  const url = new URL(link.url, window.location.origin)
+  const page = url.searchParams.get('page') || 1
+  fetchComponents(page)
 }
 
-// Filtre + tri
-const filteredComponents = computed(() => {
-  const term = search.value.toLowerCase()
-  let list = components.value.filter(c =>
-    c.name?.toLowerCase().includes(term) ||
-    (c.brand || '').toLowerCase().includes(term) ||
-    (c.type || '').toLowerCase().includes(term)
-  )
-  // Tri :
-  list = [...list].sort((a, b) => {
-    let valA = a[sortBy.value]
-    let valB = b[sortBy.value]
-    if (sortBy.value === 'price') {
-      valA = parseFloat(valA)
-      valB = parseFloat(valB)
-      if (isNaN(valA)) valA = 0
-      if (isNaN(valB)) valB = 0
-    } else {
-      valA = (valA ?? '').toString().toLowerCase()
-      valB = (valB ?? '').toString().toLowerCase()
-    }
-    if (valA < valB) return sortDesc.value ? 1 : -1
-    if (valA > valB) return sortDesc.value ? -1 : 1
-    return 0
-  })
-  return list
-})
-
-onMounted(fetchComponents)
-watch(() => props.endpoint, fetchComponents)
+watch([search], () => fetchComponents(1))
+onMounted(() => fetchComponents(1))
 </script>
 
 <template>
@@ -87,27 +78,28 @@ watch(() => props.endpoint, fetchComponents)
       <thead class="bg-lightgray text-darknavy font-semibold">
         <tr>
           <th @click="setSort('name')" class="px-4 py-2 text-left cursor-pointer select-none">
-            Nom
-            <span v-if="sortBy === 'name'">{{ sortDesc ? '▼' : '▲' }}</span>
+            Nom <span v-if="sortBy === 'name'">{{ sortDesc ? '▼' : '▲' }}</span>
           </th>
           <th @click="setSort('type')" class="px-4 py-2 text-left cursor-pointer select-none">
-            Type
-            <span v-if="sortBy === 'type'">{{ sortDesc ? '▼' : '▲' }}</span>
+            Type <span v-if="sortBy === 'type'">{{ sortDesc ? '▼' : '▲' }}</span>
           </th>
           <th @click="setSort('brand')" class="px-4 py-2 text-left cursor-pointer select-none">
-            Marque
-            <span v-if="sortBy === 'brand'">{{ sortDesc ? '▼' : '▲' }}</span>
+            Marque <span v-if="sortBy === 'brand'">{{ sortDesc ? '▼' : '▲' }}</span>
           </th>
           <th @click="setSort('price')" class="px-4 py-2 text-left cursor-pointer select-none">
-            Prix
-            <span v-if="sortBy === 'price'">{{ sortDesc ? '▼' : '▲' }}</span>
+            Prix <span v-if="sortBy === 'price'">{{ sortDesc ? '▼' : '▲' }}</span>
           </th>
           <th class="px-4 py-2 text-left">Action</th>
         </tr>
       </thead>
       <tbody>
+        <tr v-if="loading">
+          <td colspan="5" class="text-center text-darkgray px-4 py-4 italic">
+            Chargement...
+          </td>
+        </tr>
         <tr
-          v-for="component in filteredComponents"
+          v-for="component in pagination.data"
           :key="component.id"
           class="border-b last:border-0 hover:bg-lightgray/50 transition"
         >
@@ -130,12 +122,24 @@ watch(() => props.endpoint, fetchComponents)
             </Link>
           </td>
         </tr>
-        <tr v-if="filteredComponents.length === 0">
+        <tr v-if="!loading && pagination.data.length === 0">
           <td colspan="5" class="text-center text-darkgray px-4 py-4 italic">
             Aucun composant trouvé.
           </td>
         </tr>
       </tbody>
     </table>
+
+    <!-- Pagination -->
+    <div class="flex gap-2 mt-4 justify-center">
+      <button
+        v-for="link in pagination.links"
+        :key="link.label"
+        :disabled="!link.url || link.active"
+        @click="goToPage(link)"
+        v-html="link.label"
+        class="px-2 py-1 border rounded"
+      />
+    </div>
   </div>
 </template>

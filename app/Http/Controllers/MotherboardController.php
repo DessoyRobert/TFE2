@@ -8,7 +8,8 @@ class MotherboardController extends Controller
 {
     public function index()
     {
-        return Motherboard::with('component.brand')->get()->map(function ($mb) {
+        $collection = Motherboard::with('component.brand')->paginate(15);
+    $collection->getCollection()->transform(function ($mb) {
             return [
                 'id' => $mb->component_id,
                 'component_id' => $mb->component_id,
@@ -23,6 +24,7 @@ class MotherboardController extends Controller
                 'max_ram' => $mb->max_ram,
             ];
         })->values();
+    return $collection;
     }
 
     public function show(Motherboard $motherboard)
