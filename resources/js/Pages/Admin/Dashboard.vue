@@ -46,6 +46,7 @@ const props = defineProps({ stats: Object })
       <Link href="/admin/brands" class="bg-darknavy text-white px-5 py-3 rounded-xl shadow hover:bg-primary transition">Marques</Link>
       <Link href="/admin/categories" class="bg-darknavy text-white px-5 py-3 rounded-xl shadow hover:bg-primary transition">Catégories</Link>
       <Link href="/admin/component-types" class="bg-darknavy text-white px-5 py-3 rounded-xl shadow hover:bg-primary transition">Types de composants</Link>
+      <Link href="/admin/compatibility-rules" class="bg-darknavy text-white px-5 py-3 rounded-xl shadow hover:bg-primary transition">Règles de compatibilité</Link>
     </div>
   </div>
 </template>

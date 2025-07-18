@@ -27,11 +27,7 @@ public function run()
         CoolerSeeder::class,
         CaseSeeder::class,
         CompatibilityRuleSeeder::class,
+        UserSeeder::class,
            ]);
-    // Create a default user
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-        ]);
     }
 }

@@ -9,22 +9,24 @@ use App\Http\Controllers\ComponentController;
 use App\Http\Controllers\BuildController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\User\UserDashboardController;
-
 // Pages publiques
-Route::get('/', function () {
-    return Inertia::render('Welcome', [
-        'canLogin'       => Route::has('login'),
-        'canRegister'    => Route::has('register'),
-        'laravelVersion' => Application::VERSION,
-        'phpVersion'     => PHP_VERSION,
-    ]);
-});
+/*Route::get('/', function () {
+    return Inertia::render('builds/index');
+});*/
 
 // Fiche détaillée composant (Inertia, public)
 Route::get('/components/add/{component}', [ComponentController::class, 'showPage'])->name('components.show');
 
 // Builds publics : consultation/ajout uniquement
-Route::resource('builds', BuildController::class)->only(['index', 'create', 'show']);
+Route::resource('builds', BuildController::class)->only(['index', 'create', 'show', 'store"']);
+Route::get('/components', [ComponentController::class, 'indexPage'])->name('components.index');
+Route::get('/components/{component}/details', [ComponentController::class, 'showDetailPage'])->name('components.details');
+
+
+
+
+
+Route::get('/', [BuildController::class, 'index'])->name('builds.index');
 
 // Dashboard utilisateur
 
@@ -52,12 +54,13 @@ Route::middleware(['auth', 'is_admin'])
     ->group(function () {
         // Dashboard admin via contrôleur dédié
         Route::get('/dashboard', [\App\Http\Controllers\Admin\DashboardController::class, 'index'])->name('dashboard');
-         Route::resource('components', \App\Http\Controllers\Admin\ComponentController::class);
-         Route::resource('builds', \App\Http\Controllers\Admin\BuildController::class);
-         Route::resource('users', \App\Http\Controllers\Admin\UserController::class);
-         Route::resource('brands', \App\Http\Controllers\Admin\BrandController::class);
-         Route::resource('categories', \App\Http\Controllers\Admin\CategoryController::class);
-         route::resource('component-types', \App\Http\Controllers\Admin\ComponentTypeController::class);
+        Route::resource('components', \App\Http\Controllers\Admin\ComponentController::class);
+        Route::resource('builds', \App\Http\Controllers\Admin\BuildController::class);
+        Route::resource('users', \App\Http\Controllers\Admin\UserController::class);
+        Route::resource('brands', \App\Http\Controllers\Admin\BrandController::class);
+        Route::resource('categories', \App\Http\Controllers\Admin\CategoryController::class);
+        Route::resource('component-types', \App\Http\Controllers\Admin\ComponentTypeController::class);
+        Route::resource('compatibility-rules', \App\Http\Controllers\Admin\CompatibilityRuleController::class);
     });
 
 // Auth (login/register/...)

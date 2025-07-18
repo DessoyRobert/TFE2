@@ -4,6 +4,7 @@ import { computed } from 'vue'
 
 const page = usePage()
 const user = computed(() => page.props.auth.user)
+const isAdmin = computed(() => user.value?.is_admin)
 
 function logout() {
   router.post(route('logout'))
@@ -15,12 +16,29 @@ function logout() {
     <Link href="/" class="text-2xl font-bold text-primary hover:text-cyan transition-all select-none">
       JarvisTech <span class="text-violetdark">/ PCBuilder</span>
     </Link>
-
+    
     <div class="flex items-center gap-4">
+      <Link href="/builds/create" class="text-white hover:text-cyan">Créer un Build</Link>
+      <Link href="/builds" class="text-white hover:text-cyan">Tous les Builds</Link>
+      <Link href="/components" class="text-white hover:text-cyan transition-all">Tous les composants</Link>
+      <a href="https://jarvistech.be/#contact" target="_blank" rel="noopener noreferrer" class="text-white hover:text-cyan">
+        Contact
+      </a>
+
+      <!-- Boutons dynamiques -->
       <template v-if="user">
+        <template v-if="isAdmin">
+          <Link href="/admin/dashboard" class="text-white hover:text-cyan">Dashboard Admin</Link>
+          <Link href="/admin/compatibility-rules" class="text-white hover:text-cyan">Compatibilités</Link>
+        </template>
+
+        <!-- Profil + Déconnexion --><Link href="/dashboard" class="text-white hover:text-cyan">
+          Dashboard
+        </Link>
         <Link href="/profile" class="text-white hover:text-cyan">
           {{ user.name }}
         </Link>
+        
         <button
           @click="logout"
           class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-xl shadow"
@@ -33,7 +51,11 @@ function logout() {
         <Link href="/login" class="bg-primary hover:bg-cyan text-white px-4 py-2 rounded-xl shadow">
           Se connecter
         </Link>
+        <Link href="/register" class="bg-secondary hover:bg-cyan text-white px-4 py-2 rounded-xl shadow">
+          S'enregistrer
+        </Link>
       </template>
+
     </div>
   </header>
 </template>

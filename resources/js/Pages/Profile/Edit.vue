@@ -1,56 +1,45 @@
 <script setup>
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import DeleteUserForm from './Partials/DeleteUserForm.vue';
-import UpdatePasswordForm from './Partials/UpdatePasswordForm.vue';
-import UpdateProfileInformationForm from './Partials/UpdateProfileInformationForm.vue';
-import { Head } from '@inertiajs/vue3';
+import { usePage } from '@inertiajs/vue3'
+import { ref } from 'vue'
 
-defineProps({
-    mustVerifyEmail: {
-        type: Boolean,
-    },
-    status: {
-        type: String,
-    },
-});
+const user = usePage().props.auth.user
+const name = ref(user.name)
+const email = ref(user.email)
 </script>
 
 <template>
-    <Head title="Profile" />
+  <div class="p-8 max-w-2xl mx-auto rounded-2xl shadow-md">
+    <h1 class="text-3xl font-bold text-primary mb-6">Mon Profil</h1>
 
-    <AuthenticatedLayout>
-        <template #header>
-            <h2
-                class="text-xl font-semibold leading-tight text-gray-800"
-            >
-                Profile
-            </h2>
-        </template>
+    <form class="space-y-6"> 
+      <div>
+        <label for="name" class="block text-sm font-medium text-darknavy">Nom</label>
+        <input
+          v-model="name"
+          type="text"
+          id="name"
+          class="mt-1 block w-full rounded-xl border-gray-700 bg-gray-800 text-white focus:ring-cyan focus:border-cyan"
+        />
+      </div>
 
-        <div class="py-12">
-            <div class="mx-auto max-w-7xl space-y-6 sm:px-6 lg:px-8">
-                <div
-                    class="bg-white p-4 shadow sm:rounded-lg sm:p-8"
-                >
-                    <UpdateProfileInformationForm
-                        :must-verify-email="mustVerifyEmail"
-                        :status="status"
-                        class="max-w-xl"
-                    />
-                </div>
+      <div>
+        <label for="email" class="block text-sm font-medium text-darknavy">Email</label>
+        <input
+          v-model="email"
+          type="email"
+          id="email"
+          class="mt-1 block w-full rounded-xl border-gray-700 bg-gray-800 text-white focus:ring-cyan focus:border-cyan"
+        />
+      </div>
 
-                <div
-                    class="bg-white p-4 shadow sm:rounded-lg sm:p-8"
-                >
-                    <UpdatePasswordForm class="max-w-xl" />
-                </div>
-
-                <div
-                    class="bg-white p-4 shadow sm:rounded-lg sm:p-8"
-                >
-                    <DeleteUserForm class="max-w-xl" />
-                </div>
-            </div>
-        </div>
-    </AuthenticatedLayout>
+      <div class="pt-4">
+        <button
+          type="submit"
+          class="px-6 py-2 bg-primary text-white rounded-xl hover:bg-cyan transition"
+        >
+          Sauvegarder
+        </button>
+      </div>
+    </form>
+  </div>
 </template>

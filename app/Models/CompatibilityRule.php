@@ -28,7 +28,7 @@ class CompatibilityRule extends Model
     /**
      * Relation vers le type de composant A.
      */
-    public function typeA()
+    public function componentTypeA()
     {
         return $this->belongsTo(ComponentType::class, 'component_type_a_id');
     }
@@ -36,7 +36,7 @@ class CompatibilityRule extends Model
     /**
      * Relation vers le type de composant B.
      */
-    public function typeB()
+    public function componentTypeB()
     {
         return $this->belongsTo(ComponentType::class, 'component_type_b_id');
     }

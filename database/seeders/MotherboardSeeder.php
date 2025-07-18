@@ -59,6 +59,7 @@ class MotherboardSeeder extends Seeder
                 'category_id' => $categoryId,
                 'created_at' => $now,
                 'updated_at' => $now,
+                'price' => fake()->numberBetween(60, 350),
             ]);
 
             DB::table('motherboards')->insert([

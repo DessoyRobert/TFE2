@@ -1,24 +1,22 @@
-
 <script setup>
-import { ref, computed, watch } from 'vue'
-import axios from 'axios'
-import { router } from '@inertiajs/vue3'
-
-// Pinia stores
+import { ref, computed, watch, onMounted } from 'vue'
 import { useBuildStore } from '@/stores/buildStore'
 import { useBuildValidatorStore } from '@/stores/useBuildValidatorStore'
+import { router } from '@inertiajs/vue3'
 
-// Composants internes
+// Composants
 import BuildFormFields from '@/Components/BuildFormFields.vue'
 import ComponentSelectorTable from '@/Components/ComponentSelectorTable.vue'
 
 const buildStore = useBuildStore()
 const validatorStore = useBuildValidatorStore()
 
-const buildName = ref('')
-const buildDescription = ref('')
-const buildImgUrl = ref('')
+// Champs du build (liaison avec le store si tu veux deux-way binding)
+const buildName = ref(buildStore.buildName)
+const buildDescription = ref(buildStore.buildDescription)
+const buildImgUrl = ref(buildStore.buildImgUrl)
 
+// Liste des types de composants
 const componentTypes = [
   { key: 'cpu', label: 'Processeur', endpoint: '/api/cpus' },
   { key: 'gpu', label: 'Carte graphique', endpoint: '/api/gpus' },
@@ -30,6 +28,28 @@ const componentTypes = [
   { key: 'case_model', label: 'Boîtier', endpoint: '/api/case-models' },
 ]
 
+// Sync les champs texte avec le store quand on tape dedans
+watch(buildName, val => buildStore.buildName = val)
+watch(buildDescription, val => buildStore.buildDescription = val)
+watch(buildImgUrl, val => buildStore.buildImgUrl = val)
+
+// À l’arrivée sur la page, si tout est vide dans le store → reset tout
+onMounted(() => {
+  const allEmpty = componentTypes.every(type => !buildStore.build[type.key])
+  if (allEmpty) {
+    buildStore.reset()
+    buildName.value = ''
+    buildDescription.value = ''
+    buildImgUrl.value = ''
+  } else {
+    // Restaure le nom/description depuis le store
+    buildName.value = buildStore.buildName
+    buildDescription.value = buildStore.buildDescription
+    buildImgUrl.value = buildStore.buildImgUrl
+  }
+})
+
+// Calcul automatique du prix
 const autoPrice = computed(() => {
   return componentTypes.reduce((total, t) => {
     const comp = buildStore.build[t.key]
@@ -37,37 +57,41 @@ const autoPrice = computed(() => {
   }, 0)
 })
 
+// Sélection composant (modal)
 const selectorKey = ref(null)
 function handleSelect(key) {
   selectorKey.value = selectorKey.value === key ? null : key
 }
-
 function removeComponent(key) {
   buildStore.build[key] = null
 }
-
 function resetBuild() {
-  for (const type of componentTypes) {
-    buildStore.build[type.key] = null
-  }
+  buildStore.reset()
+  buildName.value = ''
+  buildDescription.value = ''
+  buildImgUrl.value = ''
 }
 
+// Soumission du build
 async function submitBuild() {
   const payload = {
     name: buildName.value,
     description: buildDescription.value,
-    imgUrl: buildImgUrl.value,
+    img_url: buildImgUrl.value,
     price: autoPrice.value,
     components: [],
   }
   for (const type of componentTypes) {
     const comp = buildStore.build[type.key]
-    if (comp && comp.component_id) {
-      payload.components.push({ component_id: comp.component_id })
+    if (comp && (comp.component_id || comp.id)) {
+      payload.components.push({
+        component_id: comp.component_id ?? comp.id,
+      })
     }
   }
   try {
     await axios.post('/api/builds', payload)
+    alert('Build créé avec succès !')
     router.visit('/')
   } catch (error) {
     console.error('Erreur lors de la création du build:', error)
@@ -75,12 +99,12 @@ async function submitBuild() {
   }
 }
 
+// Validation dynamique
 const selectedComponentIds = computed(() =>
   componentTypes
-    .map(type => buildStore.build[type.key]?.component_id)
+    .map(type => buildStore.build[type.key]?.component_id ?? buildStore.build[type.key]?.id)
     .filter(Boolean)
 )
-
 watch(selectedComponentIds, (ids) => {
   if (ids.length > 0) {
     validatorStore.validateBuild(ids)
@@ -93,7 +117,6 @@ watch(selectedComponentIds, (ids) => {
 
 <template>
   <div class="max-w-6xl mx-auto px-4 py-10 space-y-10">
-    <!-- Informations générales -->
     <div class="bg-white p-6 rounded-xl shadow-md border space-y-4">
       <h1 class="text-2xl font-bold text-darknavy">Créer un build</h1>
       <BuildFormFields
@@ -104,7 +127,6 @@ watch(selectedComponentIds, (ids) => {
       />
     </div>
 
-    <!-- Résultats des validations -->
     <div v-if="validatorStore.validating" class="text-gray-600 py-2">Validation en cours...</div>
     <ul v-if="validatorStore.errors.length" class="bg-red-100 text-red-800 rounded-xl p-3 my-2">
       <li v-for="(err, i) in validatorStore.errors" :key="i">Erreur : {{ err }}</li>
@@ -113,9 +135,7 @@ watch(selectedComponentIds, (ids) => {
       <li v-for="(warn, i) in validatorStore.warnings" :key="i">Avertissement : {{ warn }}</li>
     </ul>
 
-    <!-- Tableau des composants sélectionnés -->
     <div class="bg-white p-4 rounded-xl shadow-md border">
-      
       <table class="w-full text-sm">
         <thead class="text-darknavy font-semibold bg-lightgray">
           <tr>
@@ -160,7 +180,7 @@ watch(selectedComponentIds, (ids) => {
       </div>
     </div>
 
-    <!-- Sélecteur en modale -->
+    <!-- Sélecteur modal -->
     <Teleport to="body">
       <transition name="fade">
         <div
@@ -185,27 +205,24 @@ watch(selectedComponentIds, (ids) => {
         </div>
       </transition>
     </Teleport>
-<!-- Boutons reset et créer -->
-<div class="flex justify-between mt-6">
-  <!-- Bouton Réinitialiser -->
-  <button
-    @click="resetBuild"
-    class="bg-red-600 text-white px-6 py-2 rounded-xl hover:bg-red-700 transition"
-  >
-    Réinitialiser le build
-  </button>
 
-  <!-- Bouton Créer -->
-  <button
-    @click="submitBuild"
-    class="bg-darknavy text-white px-6 py-2 rounded-xl hover:bg-violetdark transition"
-    :disabled="selectedComponentIds.length < componentTypes.length"
-    :class="{ 'opacity-50 cursor-not-allowed': selectedComponentIds.length < componentTypes.length }"
-  >
-    Créer le build
-  </button>
-</div>
+    <div class="flex justify-between mt-6">
+      <button
+        @click="resetBuild"
+        class="bg-red-600 text-white px-6 py-2 rounded-xl hover:bg-red-700 transition"
+      >
+        Réinitialiser le build
+      </button>
 
+      <button
+        @click="submitBuild"
+        class="bg-darknavy text-white px-6 py-2 rounded-xl hover:bg-violetdark transition"
+        :disabled="selectedComponentIds.length < componentTypes.length"
+        :class="{ 'opacity-50 cursor-not-allowed': selectedComponentIds.length < componentTypes.length }"
+      >
+        Créer le build
+      </button>
+    </div>
   </div>
 </template>
 

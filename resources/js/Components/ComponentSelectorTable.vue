@@ -115,8 +115,8 @@ onMounted(() => fetchComponents(1))
               Sélectionner
             </button>
             <Link
-              :href="`/components/add/${component.id}`"
-              class="bg-darkgray hover:bg-gray-700 text-white text-xs px-3 py-1 rounded-xl"
+              :href="`/components/${component.id}/details`"
+              class="bg-darkgray bg-gray-700 text-white text-xs px-3 py-1 rounded-xl"
             >
               Détails
             </Link>

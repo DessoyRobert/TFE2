@@ -2,7 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 
-// Public : Lecture seule (GET) sur les API
+// Contrôleurs publics
 use App\Http\Controllers\ComponentController;
 use App\Http\Controllers\CpuController;
 use App\Http\Controllers\GpuController;
@@ -16,7 +16,8 @@ use App\Http\Controllers\BrandController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\BuildController;
 use App\Http\Controllers\Api\BuildValidationTempController as BuildValidationTempController;
-// Admin : CRUD sécurisé
+
+// Contrôleurs Admin
 use App\Http\Controllers\Admin\ComponentController as AdminComponentController;
 use App\Http\Controllers\Admin\CpuController as AdminCpuController;
 use App\Http\Controllers\Admin\GpuController as AdminGpuController;
@@ -30,7 +31,11 @@ use App\Http\Controllers\Admin\BrandController as AdminBrandController;
 use App\Http\Controllers\Admin\CategoryController as AdminCategoryController;
 use App\Http\Controllers\Admin\BuildController as AdminBuildController;
 
-// PUBLIC API ROUTES (lecture seule, pas besoin d’auth)
+// -----------------------------------------------
+// ROUTES PUBLIQUES OU AUTHENTIFIÉES (utilisateurs)
+// -----------------------------------------------
+
+// Lecture seule des composants
 Route::get('components', [ComponentController::class, 'index']);
 Route::get('components/{component}', [ComponentController::class, 'show']);
 Route::get('cpus', [CpuController::class, 'index']);
@@ -53,14 +58,20 @@ Route::get('brands', [BrandController::class, 'index']);
 Route::get('brands/{brand}', [BrandController::class, 'show']);
 Route::get('categories', [CategoryController::class, 'index']);
 Route::get('categories/{category}', [CategoryController::class, 'show']);
+
+// Builds utilisateur
 Route::get('builds', [BuildController::class, 'index']);
 Route::get('builds/{build}', [BuildController::class, 'show']);
-// Check build temps
-
 Route::post('builds/validate-temp', BuildValidationTempController::class);
 
-// ADMIN API ROUTES (CRUD protégé par auth + is_admin)
-Route::middleware(['auth:sanctum', 'is_admin'])->group(function () {
+//
+Route::post('builds', [BuildController::class, 'store']); 
+
+// -----------------------------------------------
+// ROUTES ADMIN (CRUD complet sécurisé)
+// -----------------------------------------------
+
+Route::middleware(['auth:sanctum', 'is_admin'])->prefix('admin')->group(function () {
     // Components
     Route::post('components', [AdminComponentController::class, 'store']);
     Route::put('components/{component}', [AdminComponentController::class, 'update']);

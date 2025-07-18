@@ -1,22 +1,20 @@
 <script setup>
-// Store Pinia du build temporaire
+// Pinia store
 import { useBuildStore } from '@/stores/buildStore'
 import { computed } from 'vue'
 import { router } from '@inertiajs/vue3'
+import GoBackButton from '@/Components/GoBackButton.vue'
 
-// Props attendues depuis Inertia
+// Props depuis Inertia
 const props = defineProps({
   component: { type: Object, required: true },
-  // "type" est optionnel, on va le détecter dynamiquement si absent
-  type: { type: String, required: false }
+  details: { type: Object, required: true },
+  type: { type: String, required: false },
 })
 
-// Store Pinia du build
 const buildStore = useBuildStore()
 
-// On déduit le type (ex: 'cpu', 'gpu', etc.)
 const resolvedType = computed(() => {
-  // Priorité à la prop, sinon déduction depuis la structure du composant
   if (props.type) return props.type
   if (props.component.type && props.component.type.name)
     return props.component.type.name.toLowerCase()
@@ -25,7 +23,6 @@ const resolvedType = computed(() => {
   return ''
 })
 
-// Vérifie si ce composant est déjà dans le build
 const dejaAjoute = computed(() => {
   const selected = buildStore.build[resolvedType.value]
   return selected && (
@@ -34,7 +31,6 @@ const dejaAjoute = computed(() => {
   )
 })
 
-// Ajoute le composant au build dans le store Pinia
 function ajouterAuBuild() {
   if (!resolvedType.value) {
     alert('Type de composant inconnu, impossible d\'ajouter au build.')
@@ -43,37 +39,40 @@ function ajouterAuBuild() {
   buildStore.addComponent(resolvedType.value, props.component)
 }
 
-// Retour vers la page de création du build
 function allerAuBuild() {
   router.visit('/builds/create')
 }
 
-// Affiche le nom de la marque
 function getBrandName(comp) {
   if (!comp) return ''
   if (typeof comp.brand === 'string') return comp.brand
   if (comp.brand && typeof comp.brand === 'object') return comp.brand.name
   return ''
 }
+
+function formatKey(key) {
+  return key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+}
+
+function formatValue(value) {
+  if (Array.isArray(value)) return value.join(', ')
+  if (typeof value === 'boolean') return value ? 'Oui' : 'Non'
+  return value ?? '—'
+}
 </script>
 
 <template>
-  <div class="min-h-screen bg-[#23213a] flex flex-col items-center py-10">
+  <div class="min-h-screen flex flex-col items-center py-10">
     <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg px-6 py-8 md:px-10 md:py-10 flex flex-col items-center relative">
-      <!-- Logo watermark discret -->
-      <img src="/images/logo-jarvistech.png"
-           alt="JarvisTech Logo"
+      <img src="/images/logo-jarvistech.png" alt="JarvisTech Logo"
            class="h-7 absolute left-6 top-6 opacity-40 pointer-events-none select-none" />
 
       <div class="flex flex-col md:flex-row w-full gap-8 md:gap-6 items-center">
-        <!-- Image produit -->
         <div class="flex-shrink-0 flex items-center justify-center w-36 h-36 md:w-40 md:h-40 bg-[#f3f8f7] rounded-xl overflow-hidden">
-          <img :src="component.img_url"
-               :alt="component.name"
+          <img :src="component.img_url" :alt="component.name"
                class="object-contain w-full h-full" />
         </div>
 
-        <!-- Détails -->
         <div class="flex-1 flex flex-col justify-center w-full">
           <h1 class="text-2xl md:text-3xl font-extrabold text-[#23213a] mb-1 break-words">{{ component.name }}</h1>
 
@@ -90,16 +89,16 @@ function getBrandName(comp) {
             {{ component.description }}
           </p>
 
-          <!-- Spécifications principales -->
-          <ul class="mb-4 grid grid-cols-2 gap-x-4 gap-y-1 text-sm text-[#23213a]">
-            <li v-if="component.socket"><span class="font-semibold">Socket :</span> {{ component.socket }}</li>
-            <li v-if="component.core_count"><span class="font-semibold">Cœurs :</span> {{ component.core_count }}</li>
-            <li v-if="component.thread_count"><span class="font-semibold">Threads :</span> {{ component.thread_count }}</li>
-            <li v-if="component.base_clock"><span class="font-semibold">Base Clock :</span> {{ component.base_clock }} GHz</li>
-            <li v-if="component.boost_clock"><span class="font-semibold">Boost Clock :</span> {{ component.boost_clock }} GHz</li>
-            <li v-if="component.tdp"><span class="font-semibold">TDP :</span> {{ component.tdp }} W</li>
+          <!-- Détails dynamiques -->
+          <ul v-if="details && Object.keys(details).length"
+              class="mb-4 grid grid-cols-2 gap-x-4 gap-y-1 text-sm text-[#23213a]">
+            <li v-for="(value, key) in details" :key="key">
+              <span class="font-semibold">{{ formatKey(key) }}:</span>
+              {{ formatValue(value) }}
+            </li>
           </ul>
 
+          <!-- Bouton ajouter -->
           <button
             :disabled="dejaAjoute"
             @click="ajouterAuBuild"
@@ -110,8 +109,16 @@ function getBrandName(comp) {
         </div>
       </div>
     </div>
+    <div class="w-full max-w-lg mb-4 px-6 md:px-0">
+    <button
+    @click="router.visit('/components')"
+    class="flex items-center text-sm text-[#1ec3a6] font-medium hover:underline"
+    >
+    ← Aller à la liste des composants
+    </button>
+    </div>
 
-    <!-- Lien retour build -->
+    <!-- Lien vers build -->
     <button
       class="mt-8 text-[#1ec3a6] hover:underline font-medium"
       @click="allerAuBuild"

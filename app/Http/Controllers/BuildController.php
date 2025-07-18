@@ -9,24 +9,23 @@ use Inertia\Inertia;
 class BuildController extends Controller
 {
     // GET /builds
-    public function index(Request $request)
+    public function index()
     {
-        $search = $request->input('search');
-        $builds = Build::with('components.brand')
-            ->when($search, fn($q) => $q->where('name', 'ILIKE', "%$search%"))
-            ->paginate(15);
+        $builds = Build::with(['components.brand'])
+            ->select('id', 'name', 'description', 'price')
+            ->get(); 
 
         return Inertia::render('Builds/Index', [
             'builds' => $builds,
-            'isAdmin' => auth()->check() && auth()->user()->role === 'admin',
         ]);
     }
-
     // GET /builds/create
     public function create()
-    {
+    { 
         return Inertia::render('Builds/Create');
     }
+
+
 
     // POST /builds
     public function store(Request $request)
