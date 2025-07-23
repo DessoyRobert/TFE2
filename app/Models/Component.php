@@ -68,4 +68,9 @@ public function casemodel()   { return $this->hasOne(CaseModel::class, 'componen
         return $this->belongsToMany(Build::class, 'build_component')
             ->withTimestamps();
     }
+    public function images()
+{
+    return $this->morphMany(Image::class, 'imageable');
+}
+
 }

@@ -64,13 +64,21 @@ function formatValue(value) {
 <template>
   <div class="min-h-screen flex flex-col items-center py-10">
     <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg px-6 py-8 md:px-10 md:py-10 flex flex-col items-center relative">
-      <img src="/images/logo-jarvistech.png" alt="JarvisTech Logo"
-           class="h-7 absolute left-6 top-6 opacity-40 pointer-events-none select-none" />
+            <img
+  src="https://res.cloudinary.com/djllwl8c0/image/upload/v1753292540/Logo-JarvisTech-PNG-normalsansfond_pgxlrj.png"
+  alt="Logo JarvisTech"
+  class="h-14 w-auto bg-darknavy p-1 rounded-full absolute top-4 left-4 shadow-md"
+/>
+
+
 
       <div class="flex flex-col md:flex-row w-full gap-8 md:gap-6 items-center">
         <div class="flex-shrink-0 flex items-center justify-center w-36 h-36 md:w-40 md:h-40 bg-[#f3f8f7] rounded-xl overflow-hidden">
-          <img :src="component.img_url" :alt="component.name"
-               class="object-contain w-full h-full" />
+          <img
+            :src="component.images?.[0]?.url ?? '/images/default.png'"
+            :alt="component.name"
+            class="object-contain w-full h-full"
+          />
         </div>
 
         <div class="flex-1 flex flex-col justify-center w-full">
@@ -109,13 +117,14 @@ function formatValue(value) {
         </div>
       </div>
     </div>
+
     <div class="w-full max-w-lg mb-4 px-6 md:px-0">
-    <button
-    @click="router.visit('/components')"
-    class="flex items-center text-sm text-[#1ec3a6] font-medium hover:underline"
-    >
-    ← Aller à la liste des composants
-    </button>
+      <button
+        @click="router.visit('/components')"
+        class="flex items-center text-sm text-[#1ec3a6] font-medium hover:underline"
+      >
+        ← Aller à la liste des composants
+      </button>
     </div>
 
     <!-- Lien vers build -->

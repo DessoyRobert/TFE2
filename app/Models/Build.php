@@ -37,4 +37,9 @@ class Build extends Model
     {
         return $this->belongsTo(User::class);
     }
+    public function images()
+{
+    return $this->morphMany(Image::class, 'imageable');
+}
+
 }

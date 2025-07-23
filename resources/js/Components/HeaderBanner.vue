@@ -13,10 +13,20 @@ function logout() {
 
 <template>
   <header class="flex items-center justify-between px-6 py-4 bg-darknavy shadow-md rounded-b-2xl">
-    <Link href="/" class="text-2xl font-bold text-primary hover:text-cyan transition-all select-none">
-      JarvisTech <span class="text-violetdark">/ PCBuilder</span>
-    </Link>
-    
+    <div class="flex items-center gap-3">
+      <!-- Logo JarvisTech -->
+      <img
+        src="https://res.cloudinary.com/djllwl8c0/image/upload/v1753292540/Logo-JarvisTech-PNG-normalsansfond_pgxlrj.png"
+        alt="Logo JarvisTech"
+        class="h-12 w-auto"
+      />
+
+      <!-- Lien vers l’accueil -->
+      <Link href="/" class="text-2xl font-bold text-primary hover:text-cyan transition-all select-none">
+        JarvisTech <span class="text-violetdark">/ PCBuilder</span>
+      </Link>
+    </div>
+
     <div class="flex items-center gap-4">
       <Link href="/builds/create" class="text-white hover:text-cyan">Créer un Build</Link>
       <Link href="/builds" class="text-white hover:text-cyan">Tous les Builds</Link>
@@ -25,20 +35,15 @@ function logout() {
         Contact
       </a>
 
-      <!-- Boutons dynamiques -->
       <template v-if="user">
         <template v-if="isAdmin">
           <Link href="/admin/dashboard" class="text-white hover:text-cyan">Dashboard Admin</Link>
           <Link href="/admin/compatibility-rules" class="text-white hover:text-cyan">Compatibilités</Link>
         </template>
 
-        <!-- Profil + Déconnexion --><Link href="/dashboard" class="text-white hover:text-cyan">
-          Dashboard
-        </Link>
-        <Link href="/profile" class="text-white hover:text-cyan">
-          {{ user.name }}
-        </Link>
-        
+        <Link href="/dashboard" class="text-white hover:text-cyan">Dashboard</Link>
+        <Link href="/profile" class="text-white hover:text-cyan">{{ user.name }}</Link>
+
         <button
           @click="logout"
           class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-xl shadow"
@@ -55,7 +60,7 @@ function logout() {
           S'enregistrer
         </Link>
       </template>
-
     </div>
   </header>
 </template>
+

@@ -9,6 +9,7 @@ use App\Http\Controllers\ComponentController;
 use App\Http\Controllers\BuildController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\User\UserDashboardController;
+use App\Http\Controllers\Admin\ImageController;
 // Pages publiques
 /*Route::get('/', function () {
     return Inertia::render('builds/index');
@@ -61,6 +62,8 @@ Route::middleware(['auth', 'is_admin'])
         Route::resource('categories', \App\Http\Controllers\Admin\CategoryController::class);
         Route::resource('component-types', \App\Http\Controllers\Admin\ComponentTypeController::class);
         Route::resource('compatibility-rules', \App\Http\Controllers\Admin\CompatibilityRuleController::class);
+        Route::get('/images/upload', [ImageController::class, 'uploadPage'])->name('images.upload');
+        Route::post('/images', [ImageController::class, 'store'])->name('images.store');
     });
 
 // Auth (login/register/...)

@@ -68,7 +68,7 @@ class ComponentController extends Controller
     {
         $component->load([
             'brand', 'type', 'cpu', 'gpu', 'ram',
-            'motherboard', 'storage', 'psu', 'cooler', 'casemodel'
+            'motherboard', 'storage', 'psu', 'cooler', 'casemodel','images'
         ]);
 
         $details = collect([
@@ -90,13 +90,15 @@ class ComponentController extends Controller
                 'description' => $component->description,
                 'img_url' => $component->img_url,
                 'brand' => $component->brand,
-                'type' => $component->type, // nécessaire pour le type dans le build
+                'type' => $component->type,
+                'images' => $component->images,
             ],
             'details' => $details
                 ? collect($details)->except(['id', 'component_id', 'created_at', 'updated_at'])->toArray()
                 : [],
             'type' => strtolower(optional($component->type)->name ?? ''),
         ]);
+
     }
 
     /**
