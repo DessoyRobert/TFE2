@@ -1,6 +1,7 @@
 <script setup>
-import { router } from '@inertiajs/vue3'
+import { router, usePage } from '@inertiajs/vue3'
 import { useBuildStore } from '@/stores/buildStore'
+import { computed } from 'vue'
 
 const buildStore = useBuildStore()
 
@@ -13,6 +14,15 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+})
+
+const page = usePage()
+
+// Gestion sécurisée du flash message pour éviter erreurs undefined
+const flashMessage = computed(() => {
+  return page.props.value && page.props.value.flash && page.props.value.flash.success
+    ? page.props.value.flash.success
+    : ''
 })
 
 // Aller sur la page de détail
@@ -41,6 +51,15 @@ function recreateBuild(build) {
 
 <template>
   <div class="max-w-5xl mx-auto py-10 space-y-8">
+    <!-- Affichage du message flash Laravel -->
+    <div
+      v-if="flashMessage"
+      class="mb-4 p-4 bg-green-100 text-green-800 rounded font-medium"
+      role="alert"
+    >
+      {{ flashMessage }}
+    </div>
+
     <div class="flex items-center justify-between">
       <h1 class="text-2xl font-bold text-darknavy mb-6">Liste des builds</h1>
       <button

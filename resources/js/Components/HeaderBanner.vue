@@ -14,11 +14,14 @@ function logout() {
 <template>
   <header class="flex items-center justify-between px-6 py-4 bg-darknavy shadow-md rounded-b-2xl">
     <div class="flex items-center gap-3">
-      <!-- Logo JarvisTech -->
+      <!-- Logo JarvisTech optimisé Cloudinary -->
       <img
-        src="https://res.cloudinary.com/djllwl8c0/image/upload/v1753292540/Logo-JarvisTech-PNG-normalsansfond_pgxlrj.png"
+        src="https://res.cloudinary.com/djllwl8c0/image/upload/f_auto,q_auto,w_192,h_48,c_fit/Logo-JarvisTech-PNG-normalsansfond_pgxlrj.png"
         alt="Logo JarvisTech"
-        class="h-12 w-auto"
+        width="192" height="48"
+        decoding="async"
+        fetchpriority="high"
+        class="h-12 w-auto block"
       />
 
       <!-- Lien vers l’accueil -->
@@ -63,4 +66,3 @@ function logout() {
     </div>
   </header>
 </template>
-

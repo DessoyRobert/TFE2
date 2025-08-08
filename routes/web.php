@@ -10,34 +10,41 @@ use App\Http\Controllers\BuildController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\User\UserDashboardController;
 use App\Http\Controllers\Admin\ImageController;
-// Pages publiques
-/*Route::get('/', function () {
-    return Inertia::render('builds/index');
-});*/
 
-// Fiche détaillée composant (Inertia, public)
-Route::get('/components/add/{component}', [ComponentController::class, 'showPage'])->name('components.show');
+/*
+|--------------------------------------------------------------------------
+| Routes publiques
+|--------------------------------------------------------------------------
+*/
 
-// Builds publics : consultation/ajout uniquement
-Route::resource('builds', BuildController::class)->only(['index', 'create', 'show', 'store"']);
-Route::get('/components', [ComponentController::class, 'indexPage'])->name('components.index');
-Route::get('/components/{component}/details', [ComponentController::class, 'showDetailPage'])->name('components.details');
-
-
-
-
-
+// Accueil → liste des builds publics
 Route::get('/', [BuildController::class, 'index'])->name('builds.index');
 
-// Dashboard utilisateur
+// Liste paginée des composants (Inertia)
+Route::get('/components', [ComponentController::class, 'indexPage'])->name('components.index');
 
+// Page de détail d’un composant
+Route::get('/components/{component}/details', [ComponentController::class, 'showDetailPage'])->name('components.details');
+
+// Builds publics : consultation/ajout
+Route::resource('builds', BuildController::class)->only(['index', 'create', 'show', 'store']);
+
+
+
+/*
+|--------------------------------------------------------------------------
+| Dashboard utilisateur
+|--------------------------------------------------------------------------
+*/
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', [UserDashboardController::class, 'index'])->name('dashboard');
 });
 
-
-
-// Gestion du profil utilisateur
+/*
+|--------------------------------------------------------------------------
+| Gestion du profil utilisateur
+|--------------------------------------------------------------------------
+*/
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
@@ -53,8 +60,9 @@ Route::middleware(['auth', 'is_admin'])
     ->prefix('admin')
     ->name('admin.')
     ->group(function () {
-        // Dashboard admin via contrôleur dédié
+        // Dashboard admin
         Route::get('/dashboard', [\App\Http\Controllers\Admin\DashboardController::class, 'index'])->name('dashboard');
+
         Route::resource('components', \App\Http\Controllers\Admin\ComponentController::class);
         Route::resource('builds', \App\Http\Controllers\Admin\BuildController::class);
         Route::resource('users', \App\Http\Controllers\Admin\UserController::class);
@@ -62,6 +70,8 @@ Route::middleware(['auth', 'is_admin'])
         Route::resource('categories', \App\Http\Controllers\Admin\CategoryController::class);
         Route::resource('component-types', \App\Http\Controllers\Admin\ComponentTypeController::class);
         Route::resource('compatibility-rules', \App\Http\Controllers\Admin\CompatibilityRuleController::class);
+
+        // Upload d’images
         Route::get('/images/upload', [ImageController::class, 'uploadPage'])->name('images.upload');
         Route::post('/images', [ImageController::class, 'store'])->name('images.store');
     });

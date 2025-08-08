@@ -3,24 +3,31 @@ import { ref, watch, onMounted } from 'vue'
 import axios from 'axios'
 import { Link } from '@inertiajs/vue3'
 
+/**
+ * Props attendues :
+ * - endpoint : URL de l'API qui retourne les composants avec pagination.
+ */
 const props = defineProps({
   endpoint: { type: String, required: true }
 })
 
-// Emission
+/**
+ * Événements émis :
+ * - select : envoyé lorsque l'utilisateur clique sur "Sélectionner".
+ */
 const emit = defineEmits(['select'])
 
-const pagination = ref({
-  data: [],
-  links: [],
-  meta: {}
-})
+// État local pour la pagination et les filtres
+const pagination = ref({ data: [], links: [], meta: {} })
 const loading = ref(false)
 const search = ref('')
 const sortBy = ref('name')
 const sortDesc = ref(false)
 const perPage = 15
 
+/**
+ * Récupère les composants depuis l'API avec les filtres et la pagination active.
+ */
 async function fetchComponents(page = 1) {
   loading.value = true
   try {
@@ -42,6 +49,10 @@ async function fetchComponents(page = 1) {
   }
 }
 
+/**
+ * Gère le tri : si on clique sur la même colonne, on inverse le sens.
+ * Sinon, on change simplement de colonne triée.
+ */
 function setSort(column) {
   if (sortBy.value === column) {
     sortDesc.value = !sortDesc.value
@@ -52,6 +63,9 @@ function setSort(column) {
   fetchComponents(1)
 }
 
+/**
+ * Change la page via la pagination API.
+ */
 function goToPage(link) {
   if (!link.url || link.active) return
   const url = new URL(link.url, window.location.origin)
@@ -59,7 +73,10 @@ function goToPage(link) {
   fetchComponents(page)
 }
 
+// Rafraîchit la liste si la recherche change
 watch([search], () => fetchComponents(1))
+
+// Charge initialement les données
 onMounted(() => fetchComponents(1))
 </script>
 
@@ -73,7 +90,7 @@ onMounted(() => fetchComponents(1))
       class="w-full border px-4 py-2 rounded-xl shadow-sm"
     />
 
-    <!-- Tableau filtré/trié -->
+    <!-- Tableau des composants -->
     <table class="w-full text-sm border rounded-xl overflow-hidden">
       <thead class="bg-lightgray text-darknavy font-semibold">
         <tr>
@@ -93,11 +110,14 @@ onMounted(() => fetchComponents(1))
         </tr>
       </thead>
       <tbody>
+        <!-- État de chargement -->
         <tr v-if="loading">
           <td colspan="5" class="text-center text-darkgray px-4 py-4 italic">
             Chargement...
           </td>
         </tr>
+
+        <!-- Résultats -->
         <tr
           v-for="component in pagination.data"
           :key="component.id"
@@ -122,6 +142,8 @@ onMounted(() => fetchComponents(1))
             </Link>
           </td>
         </tr>
+
+        <!-- Aucun résultat -->
         <tr v-if="!loading && pagination.data.length === 0">
           <td colspan="5" class="text-center text-darkgray px-4 py-4 italic">
             Aucun composant trouvé.
