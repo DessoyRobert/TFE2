@@ -176,9 +176,9 @@ loadItems(selectedCategory.value)
 </script>
 
 <template>
-  <div class="flex min-h-screen bg-gray-100">
+  <div class="flex min-h-screen bg-gray-100 gap-x-6">
     <!-- Sidebar -->
-    <aside class="w-1/5 bg-darknavy text-white p-4 space-y-2">
+    <aside class="w-1/8 bg-darknavy text-white p-4 space-y-2">
       <h2 class="text-lg font-bold mb-4">Catégories</h2>
       <ul class="space-y-2">
         <li v-for="cat in categories" :key="cat.key">
@@ -196,7 +196,7 @@ loadItems(selectedCategory.value)
     </aside>
 
     <!-- Zone centrale -->
-    <main class="flex-1 p-6">
+    <main class="flex-1 -">
       <h2 class="text-2xl font-bold mb-4">{{ selectedCategory.label }}</h2>
       <div v-if="loading">Chargement...</div>
 
@@ -237,14 +237,14 @@ loadItems(selectedCategory.value)
     </main>
 
     <!-- Résumé -->
-    <aside class="w-1/4 bg-white shadow-lg p-4 border-l">
+    <aside class="w-3/10 bg-white shadow-lg p-4 border-l">
       <h2 class="text-xl font-bold mb-4">Résumé du Build</h2>
 
       <div v-if="isBuildEmpty" class="text-gray-500 italic text-center py-4">
         Aucun composant sélectionné.
       </div>
 
-      <ul v-else class="space-y-2">
+      <ul class="space-y-2 flex-grow overflow-auto">
         <li
           v-for="cat in categories"
           :key="cat.key"
@@ -255,7 +255,7 @@ loadItems(selectedCategory.value)
             <span>{{ buildStore.build[cat.key].name }}</span>
             <button
               @click="removeComponent(cat.key)"
-              class="text-red-500 hover:underline text-sm"
+              class="text-red-500 hover:underline text-sm ml-4"
             >
               Retirer
             </button>
@@ -268,20 +268,6 @@ loadItems(selectedCategory.value)
 
       <div class="mt-4 font-bold text-lg">
         Total : {{ totalPrice.toFixed(2) }} €
-      </div>
-
-      <div v-if="errors.length" id="validation-panel" class="mt-4 bg-red-100 p-2 rounded">
-        <strong>Erreurs :</strong>
-        <ul class="list-disc ml-5">
-          <li v-for="(e, i) in errors" :key="i">{{ e }}</li>
-        </ul>
-      </div>
-
-      <div v-else-if="warnings.length" class="mt-4 bg-yellow-100 p-2 rounded">
-        <strong>Avertissements :</strong>
-        <ul class="list-disc ml-5">
-          <li v-for="(w, i) in warnings" :key="i">{{ w }}</li>
-        </ul>
       </div>
 
       <button
@@ -297,21 +283,21 @@ loadItems(selectedCategory.value)
         Sauvegarder le build
       </button>
     </aside>
-  </div>
 
-  <!-- Modal simple -->
-  <div
-    v-if="showModal"
-    class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center"
-  >
-    <div class="bg-white rounded p-6 max-w-sm text-center">
-      <p class="mb-4">{{ modalMessage }}</p>
-      <button
-        @click="onModalClose"
-        class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-      >
-        OK
-      </button>
+    <!-- Modal simple -->
+    <div
+      v-if="showModal"
+      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center"
+    >
+      <div class="bg-white rounded p-6 max-w-sm text-center">
+        <p class="mb-4">{{ modalMessage }}</p>
+        <button
+          @click="onModalClose"
+          class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+        >
+          OK
+        </button>
+      </div>
     </div>
   </div>
 </template>

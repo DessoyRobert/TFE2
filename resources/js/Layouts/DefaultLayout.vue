@@ -5,7 +5,7 @@ import HeaderBanner from '@/Components/HeaderBanner.vue'
 <template>
   <div class="min-h-screen bg-gray-50">
     <HeaderBanner />
-    <main class="max-w-6xl mx-auto p-4">
+    <main class="max-w-6xl mx-auto p-8">
       <slot />
     </main>
   </div>
