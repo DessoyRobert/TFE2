@@ -44,9 +44,18 @@ function destroyBuild(id) {
 
 // Recréer un build : copie tout dans le store puis redirige vers /builds/create
 function recreateBuild(build) {
-  buildStore.fillFromBuild(build)
-  router.visit('/builds/create')
+  // 1) Remplir le store proprement
+  const payload = JSON.parse(JSON.stringify(build))
+  buildStore.fillFromBuild(payload)
+  
+  // 2) Naviguer vers la création.
+  // Inertia SPA => le store Pinia reste en mémoire (et en plus on a la persistance).
+  router.visit('/builds/create', {
+    preserveScroll: true,
+    preserveState: true,
+  })
 }
+
 </script>
 
 <template>

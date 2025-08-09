@@ -18,7 +18,7 @@ export default {
             colors: {
                 primary: '#1ec3a6',      // Vert JarvisTech
                 cyan: '#23b59b',         // Turquoise secondaire
-                darknavy: '#23213a',     // Navy foncé
+                darknavy: '#322e43',     // Navy foncé
                 lightgray: '#f3f8f7',    // Gris très clair (background)
                 violetdark: '#464370',   // Violet foncé (pour titres, accents)
             }
