@@ -15,8 +15,9 @@ use App\Http\Controllers\CaseModelController;
 use App\Http\Controllers\BrandController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\BuildController;
-use App\Http\Controllers\Api\BuildValidationTempController as BuildValidationTempController;
 
+use App\Http\Controllers\Api\BuildValidationTempController as BuildValidationTempController;
+use App\Http\Controllers\Api\CheckoutController;
 // Contrôleurs Admin
 use App\Http\Controllers\Admin\ComponentController as AdminComponentController;
 use App\Http\Controllers\Admin\CpuController as AdminCpuController;
@@ -58,7 +59,8 @@ Route::get('brands', [BrandController::class, 'index']);
 Route::get('brands/{brand}', [BrandController::class, 'show']);
 Route::get('categories', [CategoryController::class, 'index']);
 Route::get('categories/{category}', [CategoryController::class, 'show']);
-
+//Route::post('/checkout', [CheckoutController::class, 'store']); // crée la commande
+//Route::get('/orders/{order}', [CheckoutController::class, 'show']); // détail JSON
 // Builds utilisateur
 Route::get('builds', [BuildController::class, 'index']);
 Route::get('builds/{build}', [BuildController::class, 'show']);

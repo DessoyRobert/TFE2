@@ -4,12 +4,12 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Foundation\Application;
 use Inertia\Inertia;
 
-// Contrôleurs publics
 use App\Http\Controllers\ComponentController;
 use App\Http\Controllers\BuildController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\User\UserDashboardController;
 use App\Http\Controllers\Admin\ImageController;
+use App\Http\Controllers\Admin\OrderController as AdminOrderController;
 
 /*
 |--------------------------------------------------------------------------
@@ -29,20 +29,24 @@ Route::get('/components/{component}/details', [ComponentController::class, 'show
 // Builds publics : consultation/ajout
 Route::resource('builds', BuildController::class)->only(['index', 'create', 'show', 'store']);
 
-
-
 /*
 |--------------------------------------------------------------------------
-| Dashboard utilisateur
+| Dashboard + pages réservées (auth)
 |--------------------------------------------------------------------------
 */
 Route::middleware(['auth', 'verified'])->group(function () {
+    // Dashboard utilisateur
     Route::get('/dashboard', [UserDashboardController::class, 'index'])->name('dashboard');
+
+    // Checkout réservé aux utilisateurs connectés
+    Route::get('/checkout', fn () => Inertia::render('Checkout/Index'))->name('checkout.index');
+    Route::post('/checkout', [CheckoutController::class, 'store'])->name('checkout.store'); // <- POST web
+    Route::get('/orders/{order}', [CheckoutController::class, 'show'])->name('orders.show'); // <- lecture commande
 });
 
 /*
 |--------------------------------------------------------------------------
-| Gestion du profil utilisateur
+| Gestion du profil utilisateur (auth)
 |--------------------------------------------------------------------------
 */
 Route::middleware('auth')->group(function () {
@@ -62,6 +66,9 @@ Route::middleware(['auth', 'is_admin'])
     ->group(function () {
         // Dashboard admin
         Route::get('/dashboard', [\App\Http\Controllers\Admin\DashboardController::class, 'index'])->name('dashboard');
+
+        Route::get('/orders', [AdminOrderController::class, 'index'])->name('orders.index');
+        Route::patch('/orders/{order}/status', [AdminOrderController::class, 'updateStatus'])->name('orders.updateStatus');
 
         Route::resource('components', \App\Http\Controllers\Admin\ComponentController::class);
         Route::resource('builds', \App\Http\Controllers\Admin\BuildController::class);

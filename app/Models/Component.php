@@ -72,5 +72,7 @@ public function casemodel()   { return $this->hasOne(CaseModel::class, 'componen
 {
     return $this->morphMany(Image::class, 'imageable');
 }
-
+public function orderItems() {
+    return $this->morphMany(\App\Models\OrderItem::class, 'purchasable');
+}
 }

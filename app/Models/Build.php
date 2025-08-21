@@ -41,5 +41,7 @@ class Build extends Model
 {
     return $this->morphMany(Image::class, 'imageable');
 }
-
+    public function orderItems() {
+    return $this->morphMany(\App\Models\OrderItem::class, 'purchasable');
+}
 }

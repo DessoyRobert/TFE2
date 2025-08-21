@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { Link, router } from '@inertiajs/vue3'
-import { useBuildStore } from '@/stores/buildStore'
+import { useBuildStore } from '@/stores/buildStore' // shim -> pointe vers useBuildStore
 
 // Modal confirmation
 const showModal = ref(false)
@@ -14,62 +14,6 @@ function onModalClose() {
 
 // Store global build
 const buildStore = useBuildStore()
-
-// Validation erreurs et warnings
-const errors = ref([])
-const warnings = ref([])
-const validating = ref(false)
-let validateTimer = null
-
-async function validateBuild() {
-  validating.value = true
-
-  const ids = Object.values(buildStore.build)
-    .filter(Boolean)
-    .map(c => c.id ?? c.component_id)
-
-  if (!ids.length) {
-    errors.value = []
-    warnings.value = []
-    validating.value = false
-    return
-  }
-
-  try {
-    const res = await fetch('/api/builds/validate-temp', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ component_ids: ids })
-    })
-
-    const data = await res.json()
-    errors.value = data.errors || []
-    warnings.value = data.warnings || []
-  } catch (e) {
-    console.error('Erreur validation build', e)
-    errors.value = ['Validation indisponible. Réessaie plus tard.']
-    warnings.value = []
-  }
-  validating.value = false
-}
-
-watch(
-  () => buildStore.build,
-  () => {
-    clearTimeout(validateTimer)
-    validateTimer = setTimeout(() => {
-      validateBuild()
-      setTimeout(() => {
-        if (errors.value.length) {
-          document
-            .getElementById('validation-panel')
-            ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-        }
-      }, 0)
-    }, 300)
-  },
-  { deep: true }
-)
 
 const categories = [
   { key: 'cpu', label: 'Processeur', endpoint: '/api/cpus' },
@@ -143,8 +87,20 @@ const isBuildEmpty = computed(() =>
 )
 
 const disableSave = computed(() =>
-  errors.value.length > 0 || isBuildEmpty.value
+  buildStore.errors.length > 0 || isBuildEmpty.value
 )
+
+// Filtrage par compatibilité (basé sur buildStore.compatibility)
+const visibleItems = computed(() => {
+  const key = selectedCategory.value?.key
+  if (!key) return items.value
+  const allowed = buildStore.compatibility?.[key]
+  if (!Array.isArray(allowed) || allowed.length === 0) return items.value
+  return items.value.filter(it => {
+    const id = it.id ?? it.component_id
+    return allowed.includes(id)
+  })
+})
 
 function saveBuild() {
   if (disableSave.value) return
@@ -179,42 +135,101 @@ function onResize() {
   if (window.matchMedia('(min-width: 768px)').matches) closePanels()
 }
 
-onMounted(() => {
+onMounted(async () => {
   window.addEventListener('keydown', onKeydown)
   window.addEventListener('resize', onResize)
+
+  // 1) Priorité: build complet (le plus fiable)
+  try {
+    const rawBuild = sessionStorage.getItem('rebuild_build')
+    if (rawBuild) {
+      const full = JSON.parse(rawBuild)
+      if (typeof buildStore.reset === 'function') buildStore.reset()
+      if (typeof buildStore.fillFromBuild === 'function') {
+        buildStore.fillFromBuild(full)
+      }
+      sessionStorage.removeItem('rebuild_build')
+    } else {
+      // 2) Fallback: ancien payload minimal (si présent)
+      const raw = sessionStorage.getItem('rebuild_payload')
+      if (raw) {
+        const items = JSON.parse(raw) || []
+        if (typeof buildStore.reset === 'function') buildStore.reset()
+        for (const c of items) {
+          const key = typeof buildStore.normalizeType === 'function'
+            ? buildStore.normalizeType(c.type_key)
+            : (c.type_key || '')
+          if (!key) continue
+          if (typeof buildStore.addComponent === 'function') {
+            buildStore.addComponent(key, {
+              id: c.id,
+              component_id: c.id,
+              name: c.name,
+              price: c.price,
+            })
+          } else if (buildStore.build && Object.prototype.hasOwnProperty.call(buildStore.build, key)) {
+            buildStore.build[key] = { id: c.id, name: c.name, price: c.price }
+          }
+        }
+        sessionStorage.removeItem('rebuild_payload')
+      }
+    }
+  } catch (e) {
+    console.warn('Hydratation Recréer: payload invalide', e)
+    sessionStorage.removeItem('rebuild_build')
+    sessionStorage.removeItem('rebuild_payload')
+  }
+
+  if (typeof buildStore.validateBuild === 'function') buildStore.validateBuild()
 })
+
 
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', onKeydown)
   window.removeEventListener('resize', onResize)
 })
 
+// Déclenche la validation (debounced côté store) à chaque changement du build
+watch(
+  () => buildStore.build,
+  () => {
+    buildStore.validateBuild()
+    setTimeout(() => {
+      if (buildStore.errors.length) {
+        document
+          .getElementById('validation-panel')
+          ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+      }
+    }, 400)
+  },
+  { deep: true }
+)
+
 // Chargement initial
 loadItems(selectedCategory.value)
 </script>
 
 <template>
-  <div class="min-h-screen bg-gray-100">
+  <div class="min-h-screen bg-gray-100 pt-16">
     <div class="max-w-8xl mx-auto p-4 md:p-6">
-    <!-- Barre mobile sticky -->
-    <div
-      class="md:hidden sticky top-16 z-30 -mx-4 px-4 pt-2 pb-3
-            bg-gray-100/95 backdrop-blur supports-[backdrop-filter]:bg-gray-100/70"
-    >
-      <div class="flex gap-2">
-        <button @click="openCats = true" class="flex-1 bg-darknavy text-white px-4 py-2 rounded-xl">
-          Catégories
-        </button>
-        <button
-          @click="openSummary = true"
-          :disabled="isBuildEmpty"
-          class="flex-1 bg-primary text-white px-4 py-2 rounded-xl disabled:opacity-60"
-        >
-          Résumé
-        </button>
+      <!-- Barre mobile sticky -->
+      <div
+        class="md:hidden sticky top-16 z-30 -mx-4 px-4 pt-2 pb-3
+              bg-gray-100/95 backdrop-blur supports-[backdrop-filter]:bg-gray-100/70"
+      >
+        <div class="flex gap-2">
+          <button @click="openCats = true" class="flex-1 bg-darknavy text-white px-4 py-2 rounded-xl">
+            Catégories
+          </button>
+          <button
+            @click="openSummary = true"
+            :disabled="isBuildEmpty"
+            class="flex-1 bg-primary text-white px-4 py-2 rounded-xl disabled:opacity-60"
+          >
+            Résumé
+          </button>
+        </div>
       </div>
-    </div>
-
 
       <div class="flex gap-6">
         <!-- Sidebar catégories (desktop) -->
@@ -241,19 +256,19 @@ loadItems(selectedCategory.value)
 
           <!-- Messages validation -->
           <div id="validation-panel" class="space-y-2 mb-4">
-            <div v-if="validating" class="text-sm text-gray-600">Validation en cours…</div>
+            <div v-if="buildStore.validating" class="text-sm text-gray-600">Validation en cours…</div>
 
-            <div v-if="errors.length" class="rounded-lg bg-red-50 border border-red-200 p-3 text-red-800">
+            <div v-if="buildStore.errors.length" class="rounded-lg bg-red-50 border border-red-200 p-3 text-red-800">
               <p class="font-semibold mb-1">Erreurs de compatibilité</p>
               <ul class="list-disc pl-5">
-                <li v-for="(e,i) in errors" :key="'err-'+i">{{ e }}</li>
+                <li v-for="(e,i) in buildStore.errors" :key="'err-'+i">{{ e }}</li>
               </ul>
             </div>
 
-            <div v-if="warnings.length" class="rounded-lg bg-yellow-50 border border-yellow-200 p-3 text-yellow-800">
+            <div v-if="buildStore.warnings.length" class="rounded-lg bg-yellow-50 border border-yellow-200 p-3 text-yellow-800">
               <p class="font-semibold mb-1">Avertissements</p>
               <ul class="list-disc pl-5">
-                <li v-for="(w,i) in warnings" :key="'warn-'+i">{{ w }}</li>
+                <li v-for="(w,i) in buildStore.warnings" :key="'warn-'+i">{{ w }}</li>
               </ul>
             </div>
           </div>
@@ -262,7 +277,7 @@ loadItems(selectedCategory.value)
 
           <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <div
-              v-for="item in items"
+              v-for="item in visibleItems"
               :key="item.id"
               class="bg-white rounded-xl shadow-md p-4 flex flex-col justify-between"
             >
@@ -288,7 +303,8 @@ loadItems(selectedCategory.value)
 
               <button
                 @click="selectComponent(item)"
-                class="mt-3 bg-primary hover:bg-cyan text-white px-3 py-2 rounded-lg"
+                :disabled="!buildStore.isCompatible(selectedCategory.key, item.id ?? item.component_id)"
+                class="mt-3 bg-primary hover:bg-cyan text-white px-3 py-2 rounded-lg disabled:opacity-50"
               >
                 Sélectionner
               </button>
@@ -333,19 +349,19 @@ loadItems(selectedCategory.value)
           </div>
 
           <div class="mb-4 mt-4">
-            <div v-if="validating" class="text-sm text-gray-600">Validation en cours…</div>
+            <div v-if="buildStore.validating" class="text-sm text-gray-600">Validation en cours…</div>
 
-            <div v-if="errors.length" class="rounded-lg bg-red-50 border border-red-200 p-3 text-red-800">
+            <div v-if="buildStore.errors.length" class="rounded-lg bg-red-50 border border-red-200 p-3 text-red-800">
               <p class="font-semibold mb-1">Erreurs de compatibilité</p>
               <ul class="list-disc pl-5">
-                <li v-for="(e,i) in errors" :key="'err2-'+i">{{ e }}</li>
+                <li v-for="(e,i) in buildStore.errors" :key="'err2-'+i">{{ e }}</li>
               </ul>
             </div>
 
-            <div v-if="warnings.length" class="rounded-lg bg-yellow-50 border border-yellow-200 p-3 text-yellow-800">
+            <div v-if="buildStore.warnings.length" class="rounded-lg bg-yellow-50 border border-yellow-200 p-3 text-yellow-800">
               <p class="font-semibold mb-1">Avertissements</p>
               <ul class="list-disc pl-5">
-                <li v-for="(w,i) in warnings" :key="'warn2-'+i">{{ w }}</li>
+                <li v-for="(w,i) in buildStore.warnings" :key="'warn2-'+i">{{ w }}</li>
               </ul>
             </div>
           </div>
@@ -461,19 +477,19 @@ loadItems(selectedCategory.value)
         </div>
 
         <div class="mb-4 mt-4">
-          <div v-if="validating" class="text-sm text-gray-600">Validation en cours…</div>
+          <div v-if="buildStore.validating" class="text-sm text-gray-600">Validation en cours…</div>
 
-          <div v-if="errors.length" class="rounded-lg bg-red-50 border border-red-200 p-3 text-red-800">
+          <div v-if="buildStore.errors.length" class="rounded-lg bg-red-50 border border-red-200 p-3 text-red-800">
             <p class="font-semibold mb-1">Erreurs de compatibilité</p>
             <ul class="list-disc pl-5">
-              <li v-for="(e,i) in errors" :key="'errm-'+i">{{ e }}</li>
+              <li v-for="(e,i) in buildStore.errors" :key="'errm-'+i">{{ e }}</li>
             </ul>
           </div>
 
-          <div v-if="warnings.length" class="rounded-lg bg-yellow-50 border border-yellow-200 p-3 text-yellow-800">
+          <div v-if="buildStore.warnings.length" class="rounded-lg bg-yellow-50 border border-yellow-200 p-3 text-yellow-800">
             <p class="font-semibold mb-1">Avertissements</p>
             <ul class="list-disc pl-5">
-              <li v-for="(w,i) in warnings" :key="'warnm-'+i">{{ w }}</li>
+              <li v-for="(w,i) in buildStore.warnings" :key="'warnm-'+i">{{ w }}</li>
             </ul>
           </div>
         </div>

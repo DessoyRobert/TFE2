@@ -37,12 +37,9 @@ export const useBuildStore = defineStore('build', {
       return Object.values(state.build).some(v => !!v)
     },
     isCompatible: (state) => (type, id) => {
-      if (!type) return true
-      const list = state.compatibility?.[type]
-      if (!Array.isArray(list) || list.length === 0) return true
-      const compId = typeof id === 'number' ? id : Number(id)
-      return list.includes(compId)
-    },
+      if (!state.compatibility[type]) return true
+      return state.compatibility[type].includes(id)
+    }
   },
 
   actions: {
@@ -71,13 +68,11 @@ export const useBuildStore = defineStore('build', {
       if (!key || !Object.prototype.hasOwnProperty.call(this.build, key)) return
       this.build[key] = component
     },
-
     removeComponent(type) {
       const key = this.normalizeType(type)
       if (!key || !Object.prototype.hasOwnProperty.call(this.build, key)) return
       this.build[key] = null
     },
-
     reset() {
       Object.keys(this.build).forEach(k => { this.build[k] = null })
       this.buildName = ''
@@ -87,8 +82,8 @@ export const useBuildStore = defineStore('build', {
       this.warnings = []
       this.compatibility = {}
     },
-
     fillFromBuild(build) {
+      console.log('=== fillFromBuild appelé avec ===', build)
       this.reset()
       if (build?.name) this.buildName = `${build.name}(copie)`
       if (build?.description) this.buildDescription = build.description
@@ -96,18 +91,19 @@ export const useBuildStore = defineStore('build', {
 
       const comps = Array.isArray(build?.components) ? build.components : []
       for (const component of comps) {
-        const rawType = component?.type
-          ?? component?.component_type
-          ?? component?.component?.component_type
-          ?? ''
+        const rawType = component?.type 
+                      ?? component?.component_type 
+                      ?? component?.component?.component_type 
+                      ?? ''
         const key = this.normalizeType(rawType)
         if (key && Object.prototype.hasOwnProperty.call(this.build, key)) {
           this.build[key] = component
         }
       }
+      console.log('=== Store après fillFromBuild ===', this.build)
     },
 
-    // Validation distante (débouoncée) + compatibilité proactive
+    // Validation API avec compatibilité proactive
     validateBuild() {
       const ids = Object.values(this.build)
         .filter(Boolean)
@@ -123,12 +119,9 @@ export const useBuildStore = defineStore('build', {
           const res = await axios.post('/api/builds/validate-temp', {
             component_ids: ids
           })
-          this.errors = res.data?.errors || []
-          this.warnings = res.data?.warnings || []
-          // Back possible: "compatible" ou "compatible_ids" -> on tolère les deux clés
-          this.compatibility = res.data?.compatible
-            || res.data?.compatible_ids
-            || {}
+          this.errors = res.data.errors || []
+          this.warnings = res.data.warnings || []
+          this.compatibility = res.data.compatible || {}
         } catch (e) {
           this.errors = ['Erreur serveur lors de la validation.']
           this.compatibility = {}
@@ -136,20 +129,15 @@ export const useBuildStore = defineStore('build', {
           this.validating = false
         }
       }, 300)
-    },
+    }
   },
 
   persist: {
     key: 'pcbuilder-build',
     paths: [
-      'build',
-      'buildName',
-      'buildDescription',
-      'buildImgUrl',
-      'errors',
-      'warnings',
-      'compatibility',
+      'build', 'buildName', 'buildDescription', 'buildImgUrl',
+      'errors', 'warnings', 'compatibility'
     ],
     storage: typeof window !== 'undefined' ? window.localStorage : undefined,
-  },
+  }
 })

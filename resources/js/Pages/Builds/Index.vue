@@ -1,66 +1,45 @@
 <script setup>
 import { router, usePage } from '@inertiajs/vue3'
-import { useBuildStore } from '@/stores/buildStore'
 import { computed } from 'vue'
 
-const buildStore = useBuildStore()
-
 const props = defineProps({
-  builds: {
-    type: Array,
-    required: true,
-  },
-  isAdmin: {
-    type: Boolean,
-    default: false,
-  },
+  builds: { type: Array, default: () => [] },
+  isAdmin: { type: Boolean, default: false },
 })
 
+const builds = computed(() => props.builds ?? [])
 const page = usePage()
+const flashMessage = computed(() => page.props?.flash?.success ?? '')
 
-// Gestion sécurisée du flash message pour éviter erreurs undefined
-const flashMessage = computed(() => {
-  return page.props.value && page.props.value.flash && page.props.value.flash.success
-    ? page.props.value.flash.success
-    : ''
-})
-
-// Aller sur la page de détail
 function goToShow(id) {
   router.visit(`/builds/${id}`)
 }
 
-// Aller sur la page d’édition
 function goToEdit(id) {
   router.visit(`/builds/${id}/edit`)
 }
 
-// Supprimer un build
 function destroyBuild(id) {
   if (confirm('Supprimer ce build ?')) {
     router.delete(`/builds/${id}`)
   }
 }
 
-// Recréer un build : copie tout dans le store puis redirige vers /builds/create
+// Recréer un build : stash dans sessionStorage puis redirige vers /builds/create
 function recreateBuild(build) {
-  // 1) Remplir le store proprement
-  const payload = JSON.parse(JSON.stringify(build))
-  buildStore.fillFromBuild(payload)
-  
-  // 2) Naviguer vers la création.
-  // Inertia SPA => le store Pinia reste en mémoire (et en plus on a la persistance).
-  router.visit('/builds/create', {
-    preserveScroll: true,
-    preserveState: true,
-  })
+  console.log('Build reçu dans recreateBuild:', build)
+  try {
+    sessionStorage.setItem('rebuild_build', JSON.stringify(build))
+  } catch (e) {
+    console.warn('SessionStorage indisponible pour rebuild_build', e)
+  }
+  router.visit('/builds/create', { preserveScroll: true })
 }
 
 </script>
 
 <template>
   <div class="max-w-5xl mx-auto py-10 space-y-8">
-    <!-- Affichage du message flash Laravel -->
     <div
       v-if="flashMessage"
       class="mb-4 p-4 bg-green-100 text-green-800 rounded font-medium"
