@@ -18,6 +18,7 @@ use App\Http\Controllers\BuildController;
 
 use App\Http\Controllers\Api\BuildValidationTempController as BuildValidationTempController;
 use App\Http\Controllers\Api\CheckoutController;
+use App\Http\Controllers\Api\BuildController as ApiBuildController;
 // Contrôleurs Admin
 use App\Http\Controllers\Admin\ComponentController as AdminComponentController;
 use App\Http\Controllers\Admin\CpuController as AdminCpuController;
@@ -67,8 +68,8 @@ Route::get('builds/{build}', [BuildController::class, 'show']);
 Route::post('builds/validate-temp', BuildValidationTempController::class);
 
 //
-Route::post('builds', [BuildController::class, 'store']); 
-
+//Route::post('builds', [BuildController::class, 'store']); 
+Route::post('builds', [ApiBuildController::class, 'store']);
 // -----------------------------------------------
 // ROUTES ADMIN (CRUD complet sécurisé)
 // -----------------------------------------------

@@ -14,8 +14,8 @@ class BuildController extends Controller
      */
     public function index()
     {
-        $builds = Build::with(['components.brand', 'components.images'])
-            ->select('id', 'name', 'description', 'price')
+        $builds = Build::with(['components.brand', 'components.images', 'components.type'])
+            ->select('id', 'name', 'description', 'price', 'img_url')
             ->get()
             ->map(function ($build) {
                 return [
@@ -23,12 +23,27 @@ class BuildController extends Controller
                     'name'        => $build->name,
                     'description' => $build->description,
                     'price'       => $build->price,
-                    // On peut afficher la première image dispo, sinon un placeholder
-                    'img_url'     => optional($build->components->first()?->images->first())->url 
-                                      ?? '/images/default.png',
+                    'img_url'     => $build->img_url
+                                    ?? optional($build->components->first()?->images->first())->url
+                                    ?? '/images/default.png',
+                    'components'  => $build->components->map(function ($c) {
+                        return [
+                            'id'    => $c->id,
+                            'name'  => $c->name,
+                            'price' => $c->price,
+                            'brand' => $c->brand?->only(['id','name']),
+                            'component_type' => [
+                                'slug' => $c->type->slug ?? null,
+                                'name' => $c->type->name ?? null,
+                            ],
+                            'images' => $c->images?->map(fn($img) => [
+                                'id' => $img->id,
+                                'url' => $img->url,
+                            ])->values() ?? [],
+                        ];
+                    })->values(),
                 ];
             });
-
         return Inertia::render('Builds/Index', [
             'builds' => $builds,
         ]);
@@ -36,11 +51,39 @@ class BuildController extends Controller
 
     /**
      * Affiche la page de création de build (formulaire).
+     * charge un build existant si "from" est en query string.
      */
-    public function create()
+    public function create(Request $request)
     {
-        return Inertia::render('Builds/Create');
+        $prefill = null;
+
+        if ($fromId = $request->integer('from')) {
+            $build = Build::with(['components.componentType', 'components.brand'])->find($fromId);
+            if ($build) {
+                // On prépare un shape directement compatible avec le store
+                $prefill = [
+                    'meta' => [
+                        'name'        => $build->name ? $build->name.' (copie)' : 'Build (copie)',
+                        'description' => $build->description ?? '',
+                        'img_url'     => $build->img_url ?? '',
+                    ],
+                    'items' => $build->components->map(function ($c) {
+                        return [
+                            'id'       => $c->id,
+                            'name'     => $c->name,
+                            'price'    => (float) $c->price,
+                            'type_key' => strtolower(trim($c->componentType->slug ?? $c->componentType->name ?? '')),
+                        ];
+                    })->values(),
+                ];
+            }
+        }
+
+        return Inertia::render('Builds/Create', [
+            'prefill' => $prefill, // Dans Create.vue: si présent, hydrate le store au mounted
+        ]);
     }
+
 
     /**
      * Enregistre un nouveau build et associe les composants sélectionnés.

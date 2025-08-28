@@ -19,6 +19,7 @@ class Build extends Model
         'img_url',      // Lien vers l'image de la config (optionnel)
         'description',  // Description du build
         'price',        // Prix total de la configuration (optionnel)
+        'build_code',   // Code unique pour partager le build
     ];
 
     /**
@@ -38,10 +39,10 @@ class Build extends Model
         return $this->belongsTo(User::class);
     }
     public function images()
-{
-    return $this->morphMany(Image::class, 'imageable');
-}
-    public function orderItems() {
-    return $this->morphMany(\App\Models\OrderItem::class, 'purchasable');
-}
+    {
+        return $this->morphMany(Image::class, 'imageable');
+    }
+        public function orderItems() {
+        return $this->morphMany(\App\Models\OrderItem::class, 'purchasable');
+    }
 }

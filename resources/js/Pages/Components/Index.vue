@@ -1,11 +1,14 @@
 <script setup>
 import { ref, watch } from 'vue'
 import { router, Link } from '@inertiajs/vue3'
+import { useCartStore } from '@/stores/cartStore'
 
 const props = defineProps({
   components: Object,
   filters: Object
 })
+
+const cart = useCartStore()
 
 const filters = ref({
   search: props.filters.search ?? '',
@@ -25,11 +28,23 @@ watch(filters, () => {
       preserveState: true,
       replace: true
     })
-
     previousFilters = newFilters
   }
 }, { deep: true })
+
+// ---------- UI helpers ----------
+const eur = new Intl.NumberFormat('fr-BE', { style: 'currency', currency: 'EUR' })
+
+// petit état local pour afficher "Ajouté ✓" pendant 1.5s
+const added = ref({}) // ex: { [id]: true }
+function addToCart(component) {
+  if (!component?.id) return
+  cart.add({ type: 'component', id: component.id, qty: 1 })
+  added.value[component.id] = true
+  setTimeout(() => { delete added.value[component.id] }, 1500)
+}
 </script>
+
 <template>
   <div class="max-w-6xl mx-auto px-4 py-10 text-slate-900">
     <h1 class="text-3xl font-semibold mb-6">Liste des composants</h1>
@@ -77,17 +92,41 @@ watch(filters, () => {
             :key="component.id"
             class="border-t border-slate-200 hover:bg-slate-50 transition"
           >
-            <td class="px-4 py-3">{{ component.name }}</td>
-            <td class="px-4 py-3">{{ component.brand }}</td>
-            <td class="px-4 py-3 capitalize">{{ component.type }}</td>
-            <td class="px-4 py-3 text-right">{{ component.price }} €</td>
-            <td class="px-4 py-3 text-center">
-            <Link
-              :href="`/components/${component.id}/details`"
-              class="inline-block text-xs px-3 py-1 rounded-full bg-[#1ec3a6] text-white font-semibold shadow hover:bg-[#1aa893] transition"
-            >
-              Détails
-            </Link>
+            <td class="px-4 py-3">
+              {{ component.name }}
+            </td>
+            <td class="px-4 py-3">
+              <!-- Selon ta Resource, brand est souvent déjà une string -->
+              {{ component.brand }}
+            </td>
+            <td class="px-4 py-3 capitalize">
+              {{ component.type }}
+            </td>
+            <td class="px-4 py-3 text-right">
+              {{ eur.format(Number(component.price ?? 0)) }}
+            </td>
+            <td class="px-4 py-3">
+              <div class="flex items-center gap-2 justify-center">
+                <Link
+                  :href="`/components/${component.id}/details`"
+                  class="inline-block text-xs px-3 py-1 rounded-full bg-[#1ec3a6] text-white font-semibold shadow hover:bg-[#1aa893] transition"
+                >
+                  Détails
+                </Link>
+
+                <button
+                  @click="addToCart(component)"
+                  class="inline-flex items-center text-xs px-3 py-1 rounded-full bg-blue-600 text-white font-semibold shadow hover:bg-blue-700 transition"
+                >
+                  <span v-if="!added[component.id]">Ajouter au panier</span>
+                  <span v-else class="inline-flex items-center gap-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                      <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-7.25 7.25a1 1 0 01-1.414 0l-3.25-3.25a1 1 0 111.414-1.414l2.543 2.543 6.543-6.543a1 1 0 011.414 0z" clip-rule="evenodd" />
+                    </svg>
+                    Ajouté
+                  </span>
+                </button>
+              </div>
             </td>
           </tr>
         </tbody>

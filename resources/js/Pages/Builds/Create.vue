@@ -2,8 +2,9 @@
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { Link, router } from '@inertiajs/vue3'
 import { useBuildStore } from '@/stores/buildStore' // shim -> pointe vers useBuildStore
-
-// Modal confirmation
+import { useCartStore } from '@/stores/cartStore'
+import ComponentCard from '@/Components/ComponentCard.vue'
+// ---------- UI état / modale ----------
 const showModal = ref(false)
 const modalMessage = ref('')
 
@@ -12,18 +13,20 @@ function onModalClose() {
   router.visit(route('builds.index'))
 }
 
-// Store global build
+// ---------- Stores ----------
 const buildStore = useBuildStore()
+const cart = useCartStore()
 
+// ---------- Données / catégories ----------
 const categories = [
-  { key: 'cpu', label: 'Processeur', endpoint: '/api/cpus' },
-  { key: 'gpu', label: 'Carte Graphique', endpoint: '/api/gpus' },
-  { key: 'ram', label: 'Mémoire RAM', endpoint: '/api/rams' },
-  { key: 'motherboard', label: 'Carte Mère', endpoint: '/api/motherboards' },
-  { key: 'storage', label: 'Stockage', endpoint: '/api/storages' },
-  { key: 'psu', label: 'Alimentation', endpoint: '/api/psus' },
-  { key: 'cooler', label: 'Refroidissement', endpoint: '/api/coolers' },
-  { key: 'case_model', label: 'Boîtier', endpoint: '/api/case-models' }
+  { key: 'cpu',          label: 'Processeur',       endpoint: '/api/cpus' },
+  { key: 'gpu',          label: 'Carte Graphique',  endpoint: '/api/gpus' },
+  { key: 'ram',          label: 'Mémoire RAM',      endpoint: '/api/rams' },
+  { key: 'motherboard',  label: 'Carte Mère',       endpoint: '/api/motherboards' },
+  { key: 'storage',      label: 'Stockage',         endpoint: '/api/storages' },
+  { key: 'psu',          label: 'Alimentation',     endpoint: '/api/psus' },
+  { key: 'cooler',       label: 'Refroidissement',  endpoint: '/api/coolers' },
+  { key: 'case_model',   label: 'Boîtier',          endpoint: '/api/case-models' }
 ]
 
 const selectedCategory = ref(categories[0])
@@ -76,21 +79,31 @@ function removeComponent(key) {
   buildStore.build[key] = null
 }
 
+// ---------- Totaux / validations ----------
 const totalPrice = computed(() => {
   return Object.values(buildStore.build)
     .filter(Boolean)
     .reduce((sum, comp) => sum + (parseFloat(comp.price) || 0), 0)
 })
-
 const isBuildEmpty = computed(() =>
   Object.values(buildStore.build).filter(Boolean).length === 0
 )
+
+const missingList = computed(() => (typeof buildStore.missingRequired === 'function'
+  ? buildStore.missingRequired()
+  : []))
 
 const disableSave = computed(() =>
   buildStore.errors.length > 0 || isBuildEmpty.value
 )
 
-// Filtrage par compatibilité (basé sur buildStore.compatibility)
+const disableCheckout = computed(() =>
+  buildStore.errors.length > 0 || !(
+    typeof buildStore.isValid === 'function' ? buildStore.isValid() : !isBuildEmpty.value
+  )
+)
+
+// Filtrage par compatibilité
 const visibleItems = computed(() => {
   const key = selectedCategory.value?.key
   if (!key) return items.value
@@ -102,31 +115,110 @@ const visibleItems = computed(() => {
   })
 })
 
+// ---------- Sauvegarder (web) ----------
+const savingBuild = ref(false)
 function saveBuild() {
   if (disableSave.value) return
+  savingBuild.value = true
 
-  const componentsPayload = Object.values(buildStore.build)
-    .filter(Boolean)
-    .map(c => ({ component_id: c.id ?? c.component_id }))
+  // On utilise le payload du store mais on le convertit pour le contrôleur web:
+  // toPayload() => { name, description, img_url, price, components:[{id,type}] }
+  const payload = typeof buildStore.toPayload === 'function'
+    ? buildStore.toPayload()
+    : {
+        name: 'Build personnalisé',
+        description: '',
+        img_url: null,
+        price: Number(totalPrice.value.toFixed(2)),
+        components: Object.values(buildStore.build)
+          .filter(Boolean)
+          .map(c => ({ id: c.id ?? c.component_id })),
+      }
 
-  router.post('/builds', {
-    name: 'Build personnalisé',
-    description: '',
-    price: totalPrice.value.toFixed(2),
+  // Format attendu côté BuildController (web): components: [{ component_id }]
+  const componentsPayload = (payload.components || []).map(c => ({ component_id: c.id }))
+  const body = {
+    name: payload.name,
+    description: payload.description || '',
+    img_url: payload.img_url || '',
+    price: Number(payload.price ?? 0).toFixed(2),
     components: componentsPayload,
-  }, {
+  }
+
+  router.post('/builds', body, {
     onSuccess: () => {
       modalMessage.value = 'Build sauvegardé avec succès !'
       showModal.value = true
+      savingBuild.value = false
     },
     onError: () => {
       modalMessage.value = 'Erreur lors de la sauvegarde.'
       showModal.value = true
+      savingBuild.value = false
     }
   })
 }
 
-// Responsive panels (mobile)
+// ---------- Sauvegarder & Commander (API JSON) ----------
+const savingAndCheckout = ref(false)
+
+async function saveAndCheckout() {
+  if (disableCheckout.value) return
+  savingAndCheckout.value = true
+
+  try {
+    // Payload JSON générique (API)
+    const payload = typeof buildStore.toPayload === 'function'
+      ? buildStore.toPayload()
+      : {
+          name: 'Build personnalisé',
+          description: '',
+          img_url: null,
+          price: Number(totalPrice.value.toFixed(2)),
+          components: Object.values(buildStore.build)
+            .filter(Boolean)
+            .map(c => ({ id: c.id ?? c.component_id, type: 'unknown' })),
+        }
+
+    // Pour l’API: on garde components:[{ id, type }], si ton API exige component_id:
+    const maybeApiBody = {
+      ...payload,
+      components: (payload.components || []).map(c => ({ component_id: c.id }))
+    }
+
+    // CSRF (au cas où)
+    const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
+
+    // 1) on tente l’API JSON
+    const res = await fetch('/api/builds', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        ...(csrf ? { 'X-CSRF-TOKEN': csrf } : {})
+      },
+      body: JSON.stringify(maybeApiBody)
+    })
+
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok || !data?.id) {
+      // Si l’API n’est pas dispo / ne renvoie pas d’id, on informe :
+      throw new Error(data?.message || 'Impossible de sauvegarder le build en API.')
+    }
+
+    // 2) Ajouter au panier puis aller au checkout
+    cart.add({ type: 'build', id: data.id, qty: 1 })
+    router.visit(route('checkout.index'))
+  } catch (e) {
+    console.error(e)
+    modalMessage.value = e?.message || 'Échec de la sauvegarde & commande.'
+    showModal.value = true
+  } finally {
+    savingAndCheckout.value = false
+  }
+}
+
+// ---------- Responsive panels (mobile) ----------
 const openCats = ref(false)
 const openSummary = ref(false)
 function closePanels() { openCats.value = false; openSummary.value = false }
@@ -135,6 +227,7 @@ function onResize() {
   if (window.matchMedia('(min-width: 768px)').matches) closePanels()
 }
 
+// ---------- Montage ----------
 onMounted(async () => {
   window.addEventListener('keydown', onKeydown)
   window.addEventListener('resize', onResize)
@@ -183,7 +276,6 @@ onMounted(async () => {
   if (typeof buildStore.validateBuild === 'function') buildStore.validateBuild()
 })
 
-
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', onKeydown)
   window.removeEventListener('resize', onResize)
@@ -193,7 +285,7 @@ onBeforeUnmount(() => {
 watch(
   () => buildStore.build,
   () => {
-    buildStore.validateBuild()
+    buildStore.validateBuild?.()
     setTimeout(() => {
       if (buildStore.errors.length) {
         document
@@ -258,6 +350,13 @@ loadItems(selectedCategory.value)
           <div id="validation-panel" class="space-y-2 mb-4">
             <div v-if="buildStore.validating" class="text-sm text-gray-600">Validation en cours…</div>
 
+            <div v-if="missingList.length" class="rounded-lg bg-blue-50 border border-blue-200 p-3 text-blue-900">
+              <p class="font-semibold mb-1">Éléments requis manquants</p>
+              <ul class="list-disc pl-5">
+                <li v-for="m in missingList" :key="m">{{ m }}</li>
+              </ul>
+            </div>
+
             <div v-if="buildStore.errors.length" class="rounded-lg bg-red-50 border border-red-200 p-3 text-red-800">
               <p class="font-semibold mb-1">Erreurs de compatibilité</p>
               <ul class="list-disc pl-5">
@@ -276,39 +375,15 @@ loadItems(selectedCategory.value)
           <div v-if="loading">Chargement...</div>
 
           <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div
+            <ComponentCard
               v-for="item in visibleItems"
               :key="item.id"
-              class="bg-white rounded-xl shadow-md p-4 flex flex-col justify-between"
-            >
-              <Link
-                :href="route('components.details', item.id)"
-                class="block group"
-                aria-label="Voir le détail du composant"
-              >
-                <img
-                  :src="pickImageUrl(item)"
-                  :alt="item.name"
-                  width="480"
-                  height="240"
-                  class="w-full h-32 object-contain mb-2 transition-transform group-hover:scale-[1.02]"
-                  loading="lazy"
-                  decoding="async"
-                />
-                <h3 class="font-semibold group-hover:text-primary transition-colors">
-                  {{ item.name }}
-                </h3>
-                <p class="text-gray-600">{{ item.price }} €</p>
-              </Link>
-
-              <button
-                @click="selectComponent(item)"
-                :disabled="!buildStore.isCompatible(selectedCategory.key, item.id ?? item.component_id)"
-                class="mt-3 bg-primary hover:bg-cyan text-white px-3 py-2 rounded-lg disabled:opacity-50"
-              >
-                Sélectionner
-              </button>
-            </div>
+              :item="item"
+              :disableSelect="!buildStore.isCompatible(selectedCategory.key, item.id ?? item.component_id)"
+              :show-details="true"
+              :show-add-to-cart="false"
+              @select="selectComponent"
+            />
           </div>
         </main>
 
@@ -366,18 +441,33 @@ loadItems(selectedCategory.value)
             </div>
           </div>
 
-          <button
-            @click="saveBuild"
-            :disabled="disableSave"
-            :class="[
-              'mt-auto w-full py-2 rounded-xl transition-all',
-              disableSave
-                ? 'bg-gray-400 cursor-not-allowed text-white'
-                : 'bg-green-600 hover:bg-green-700 text-white'
-            ]"
-          >
-            Sauvegarder le build
-          </button>
+          <div class="flex flex-col gap-2 mt-auto w-full">
+            <button
+              @click="saveBuild"
+              :disabled="disableSave || savingBuild"
+              :class="[
+                'w-full py-2 rounded-xl transition-all',
+                (disableSave || savingBuild)
+                  ? 'bg-gray-400 cursor-not-allowed text-white'
+                  : 'bg-green-600 hover:bg-green-700 text-white'
+              ]"
+            >
+              {{ savingBuild ? 'Sauvegarde…' : 'Sauvegarder le build' }}
+            </button>
+
+            <button
+              @click="saveAndCheckout"
+              :disabled="disableCheckout || savingAndCheckout"
+              :class="[
+                'w-full py-2 rounded-xl transition-all',
+                (disableCheckout || savingAndCheckout)
+                  ? 'bg-gray-300 cursor-not-allowed text-white'
+                  : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+              ]"
+            >
+              {{ savingAndCheckout ? 'Traitement…' : 'Sauvegarder & Commander' }}
+            </button>
+          </div>
         </aside>
       </div>
     </div>
@@ -494,18 +584,33 @@ loadItems(selectedCategory.value)
           </div>
         </div>
 
-        <button
-          @click="() => { saveBuild(); }"
-          :disabled="disableSave"
-          :class="[
-            'mt-auto w-full py-2 rounded-xl transition-all',
-            disableSave
-              ? 'bg-gray-400 cursor-not-allowed text-white'
-              : 'bg-green-600 hover:bg-green-700 text-white'
-          ]"
-        >
-          Sauvegarder le build
-        </button>
+        <div class="mt-auto w-full flex flex-col gap-2">
+          <button
+            @click="saveBuild"
+            :disabled="disableSave || savingBuild"
+            :class="[
+              'w-full py-2 rounded-xl transition-all',
+              (disableSave || savingBuild)
+                ? 'bg-gray-400 cursor-not-allowed text-white'
+                : 'bg-green-600 hover:bg-green-700 text-white'
+            ]"
+          >
+            {{ savingBuild ? 'Sauvegarde…' : 'Sauvegarder le build' }}
+          </button>
+
+          <button
+            @click="saveAndCheckout"
+            :disabled="disableCheckout || savingAndCheckout"
+            :class="[
+              'w-full py-2 rounded-xl transition-all',
+              (disableCheckout || savingAndCheckout)
+                ? 'bg-gray-300 cursor-not-allowed text-white'
+                : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+            ]"
+          >
+            {{ savingAndCheckout ? 'Traitement…' : 'Sauvegarder & Commander' }}
+          </button>
+        </div>
       </aside>
     </Transition>
 

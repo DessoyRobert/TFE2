@@ -49,14 +49,14 @@ class Component extends Model
     }
 
     // Relations spécialisées : chaque composant "fille" possède un et un seul composant parent
-public function cpu()         { return $this->hasOne(Cpu::class, 'component_id'); }
-public function gpu()         { return $this->hasOne(Gpu::class, 'component_id'); }
-public function ram()         { return $this->hasOne(Ram::class, 'component_id'); }
-public function motherboard() { return $this->hasOne(Motherboard::class, 'component_id'); }
-public function storage()     { return $this->hasOne(Storage::class, 'component_id'); }
-public function psu()         { return $this->hasOne(Psu::class, 'component_id'); }
-public function cooler()      { return $this->hasOne(Cooler::class, 'component_id'); }
-public function casemodel()   { return $this->hasOne(CaseModel::class, 'component_id'); }
+    public function cpu()         { return $this->hasOne(Cpu::class, 'component_id'); }
+    public function gpu()         { return $this->hasOne(Gpu::class, 'component_id'); }
+    public function ram()         { return $this->hasOne(Ram::class, 'component_id'); }
+    public function motherboard() { return $this->hasOne(Motherboard::class, 'component_id'); }
+    public function storage()     { return $this->hasOne(Storage::class, 'component_id'); }
+    public function psu()         { return $this->hasOne(Psu::class, 'component_id'); }
+    public function cooler()      { return $this->hasOne(Cooler::class, 'component_id'); }
+    public function casemodel()   { return $this->hasOne(CaseModel::class, 'component_id'); }
 
 
     /**
@@ -69,10 +69,10 @@ public function casemodel()   { return $this->hasOne(CaseModel::class, 'componen
             ->withTimestamps();
     }
     public function images()
-{
-    return $this->morphMany(Image::class, 'imageable');
-}
-public function orderItems() {
-    return $this->morphMany(\App\Models\OrderItem::class, 'purchasable');
-}
+    {
+        return $this->morphMany(Image::class, 'imageable');
+    }
+    public function orderItems() {
+        return $this->morphMany(\App\Models\OrderItem::class, 'purchasable');
+    }
 }
