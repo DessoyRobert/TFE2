@@ -21,3 +21,33 @@ yarn-error.log
 /.nova
 /.vscode
 /.zed
+# Env & secrets
+.env
+.env.*        # garde .env.example uniquement
+
+# Laravel runtime
+/vendor/
+bootstrap/cache/*
+!bootstrap/cache/.gitignore
+storage/*.key
+storage/logs/*
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/views/*
+storage/app/public/*
+public/storage
+
+# Front build
+node_modules/
+dist/
+.vite/
+public/build/
+public/hot
+
+# OS/IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.iml
+
