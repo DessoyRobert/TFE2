@@ -1,14 +1,14 @@
 <script setup>
 import { ref, watch } from 'vue'
 import { router, Link } from '@inertiajs/vue3'
-import { useCartStore } from '@/stores/cartStore'
-
+//import { useCartStore } from '@/stores/cartStore'
+import { useBuildStore } from '@/stores/buildStore'
 const props = defineProps({
   components: Object,
   filters: Object
 })
 
-const cart = useCartStore()
+const build = useBuildStore()
 
 const filters = ref({
   search: props.filters.search ?? '',
@@ -37,9 +37,9 @@ const eur = new Intl.NumberFormat('fr-BE', { style: 'currency', currency: 'EUR' 
 
 // petit état local pour afficher "Ajouté ✓" pendant 1.5s
 const added = ref({}) // ex: { [id]: true }
-function addToCart(component) {
+function addToBuild(component) {
   if (!component?.id) return
-  cart.add({ type: 'component', id: component.id, qty: 1 })
+  build.addFromComponent(component)
   added.value[component.id] = true
   setTimeout(() => { delete added.value[component.id] }, 1500)
 }
@@ -115,7 +115,7 @@ function addToCart(component) {
                 </Link>
 
                 <button
-                  @click="addToCart(component)"
+                  @click="addToBuild(component)"
                   class="inline-flex items-center text-xs px-3 py-1 rounded-full bg-blue-600 text-white font-semibold shadow hover:bg-blue-700 transition"
                 >
                   <span v-if="!added[component.id]">Ajouter au panier</span>

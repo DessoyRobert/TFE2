@@ -45,4 +45,20 @@ class Build extends Model
         public function orderItems() {
         return $this->morphMany(\App\Models\OrderItem::class, 'purchasable');
     }
+    public function recalculateTotals(): void
+    {
+        $this->loadMissing('components');
+        $total = 0;
+        $count = 0;
+        foreach ($this->components as $component) {
+            $qty = (int)($component->pivot->quantity ?? 1);
+            $price = (float)($component->price ?? 0);
+            $total += $price * $qty;
+            $count += $qty;
+        }
+        $this->forceFill([
+            'total_price' => $total,
+            'component_count' => $count,
+        ])->save();
+    }
 }

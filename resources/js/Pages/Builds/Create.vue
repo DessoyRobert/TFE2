@@ -4,6 +4,7 @@ import { Link, router } from '@inertiajs/vue3'
 import { useBuildStore } from '@/stores/buildStore' // shim -> pointe vers useBuildStore
 import { useCartStore } from '@/stores/cartStore'
 import ComponentCard from '@/Components/ComponentCard.vue'
+
 // ---------- UI état / modale ----------
 const showModal = ref(false)
 const modalMessage = ref('')
@@ -115,6 +116,14 @@ const visibleItems = computed(() => {
   })
 })
 
+// ---------- Helper: construire component_ids pour l'API builds ----------
+function getComponentIds () {
+  return Object.values(buildStore.build)
+    .filter(Boolean)
+    .map(c => c.id ?? c.component_id)
+    .filter(Boolean)
+}
+
 // ---------- Sauvegarder (web) ----------
 const savingBuild = ref(false)
 function saveBuild() {
@@ -167,29 +176,13 @@ async function saveAndCheckout() {
   savingAndCheckout.value = true
 
   try {
-    // Payload JSON générique (API)
-    const payload = typeof buildStore.toPayload === 'function'
-      ? buildStore.toPayload()
-      : {
-          name: 'Build personnalisé',
-          description: '',
-          img_url: null,
-          price: Number(totalPrice.value.toFixed(2)),
-          components: Object.values(buildStore.build)
-            .filter(Boolean)
-            .map(c => ({ id: c.id ?? c.component_id, type: 'unknown' })),
-        }
-
-    // Pour l’API: on garde components:[{ id, type }], si ton API exige component_id:
-    const maybeApiBody = {
-      ...payload,
-      components: (payload.components || []).map(c => ({ component_id: c.id }))
+    const component_ids = getComponentIds()
+    if (!component_ids.length) {
+      throw new Error('Aucun composant sélectionné.')
     }
 
-    // CSRF (au cas où)
+    // 1) Créer le build (API) — le contrôleur attend component_ids[]
     const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
-
-    // 1) on tente l’API JSON
     const res = await fetch('/api/builds', {
       method: 'POST',
       headers: {
@@ -197,18 +190,40 @@ async function saveAndCheckout() {
         'Accept': 'application/json',
         ...(csrf ? { 'X-CSRF-TOKEN': csrf } : {})
       },
-      body: JSON.stringify(maybeApiBody)
+      body: JSON.stringify({
+        name: 'Build personnalisé',
+        description: '',
+        component_ids, // <-- IMPORTANT: correspond aux règles du Api\BuildController@store
+      })
     })
 
-    const data = await res.json().catch(() => ({}))
-    if (!res.ok || !data?.id) {
-      // Si l’API n’est pas dispo / ne renvoie pas d’id, on informe :
-      throw new Error(data?.message || 'Impossible de sauvegarder le build en API.')
+    const build = await res.json().catch(() => ({}))
+    if (!res.ok || !build?.id) {
+      throw new Error(build?.message || 'Impossible de sauvegarder le build.')
     }
 
-    // 2) Ajouter au panier puis aller au checkout
-    cart.add({ type: 'build', id: data.id, qty: 1 })
-    router.visit(route('checkout.index'))
+    // 2) Checkout : le back déduit les composants via build_id (PlaceOrderRequest rules OK)
+    const res2 = await fetch('/api/checkout', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        ...(csrf ? { 'X-CSRF-TOKEN': csrf } : {})
+      },
+      body: JSON.stringify({ build_id: build.id })
+    })
+
+    const out = await res2.json().catch(() => ({}))
+    if (!res2.ok) {
+      throw new Error(out?.message || 'Échec du checkout.')
+    }
+
+    if (out?.redirect_url) {
+      window.location.href = out.redirect_url
+    } else {
+      modalMessage.value = 'Commande créée.'
+      showModal.value = true
+    }
   } catch (e) {
     console.error(e)
     modalMessage.value = e?.message || 'Échec de la sauvegarde & commande.'

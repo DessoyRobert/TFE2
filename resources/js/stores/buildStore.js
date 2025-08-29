@@ -12,7 +12,7 @@ export const useBuildStore = defineStore('build', {
       storage: null,
       psu: null,
       cooler: null,
-      case_model: null,
+      case_model: null, // clé boîtier côté state
     },
     buildName: '',
     buildDescription: '',
@@ -46,6 +46,7 @@ export const useBuildStore = defineStore('build', {
   },
 
   actions: {
+    // Normalise un libellé de type vers une clé du state.build
     normalizeType(raw) {
       if (!raw) return ''
       let k = ''
@@ -54,18 +55,73 @@ export const useBuildStore = defineStore('build', {
       k = (k || '').trim().toLowerCase()
 
       switch (k) {
-        case 'cpu': case 'processeur': return 'cpu'
-        case 'gpu': case 'carte graphique': return 'gpu'
-        case 'ram': case 'mémoire': case 'memoire': return 'ram'
-        case 'motherboard': case 'carte mère': case 'carte mere': return 'motherboard'
-        case 'storage': case 'ssd': case 'hdd': return 'storage'
-        case 'psu': case 'power supply': case 'alimentation': return 'psu'
-        case 'cooler': case 'ventirad': return 'cooler'
-        case 'case': case 'case model': case 'boîtier': case 'boitier': return 'case_model'
-        default: return ''
+        case 'cpu':
+        case 'processeur':
+          return 'cpu'
+
+        case 'gpu':
+        case 'carte graphique':
+          return 'gpu'
+
+        case 'ram':
+        case 'mémoire':
+        case 'memoire':
+          return 'ram'
+
+        case 'motherboard':
+        case 'carte mère':
+        case 'carte mere':
+          return 'motherboard'
+
+        case 'storage':
+        case 'ssd':
+        case 'hdd':
+          return 'storage'
+
+        case 'psu':
+        case 'power supply':
+        case 'alimentation':
+          return 'psu'
+
+        case 'cooler':
+        case 'ventirad':
+          return 'cooler'
+
+        // Boîtier : accepter plusieurs variantes
+        case 'case':
+        case 'case model':
+        case 'case_model':
+        case 'case-model':
+        case 'boîtier':
+        case 'boitier':
+          return 'case_model'
+
+        default:
+          return ''
       }
     },
 
+    // Déduit le type à partir de la structure du composant (string ou objet)
+    resolveTypeFromComponent(component) {
+      const rawType =
+        component?.type?.name ??
+        component?.type ??
+        component?.component_type?.name ??
+        component?.component_type ??
+        ''
+      return this.normalizeType(rawType)
+    },
+
+    // API haut-niveau : ajoute un composant “brut” (pratique pour Details.vue / index.vue)
+    addFromComponent(component) {
+      const key = this.resolveTypeFromComponent(component)
+      if (!key || !Object.prototype.hasOwnProperty.call(this.build, key)) {
+        throw new Error('Unknown component type')
+      }
+      this.build[key] = component
+    },
+
+    // API bas-niveau : ajoute avec un type fourni (string ou objet)
     addComponent(type, component) {
       const key = this.normalizeType(type)
       if (!key || !Object.prototype.hasOwnProperty.call(this.build, key)) return
@@ -96,18 +152,14 @@ export const useBuildStore = defineStore('build', {
 
       const comps = Array.isArray(build?.components) ? build.components : []
       for (const component of comps) {
-        const rawType = component?.type
-          ?? component?.component_type
-          ?? component?.component?.component_type
-          ?? ''
-        const key = this.normalizeType(rawType)
+        const key = this.resolveTypeFromComponent(component)
         if (key && Object.prototype.hasOwnProperty.call(this.build, key)) {
           this.build[key] = component
         }
       }
     },
 
-    // Validation distante (débouoncée) + compatibilité proactive
+    // Validation distante (debounced) + compatibilité proactive
     validateBuild() {
       const ids = Object.values(this.build)
         .filter(Boolean)

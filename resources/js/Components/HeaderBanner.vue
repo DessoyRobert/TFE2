@@ -2,14 +2,24 @@
 import { Link, usePage, router } from '@inertiajs/vue3'
 import { computed, ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useCartStore } from '@/stores/cartStore'
+import { useBuildStore } from '@/stores/buildStore'
 
-/* Stores / props */
+/* Stores */
 const cart = useCartStore()
-const count = computed(() => cart.count)
+const build = useBuildStore()
 
+/* Comptes & totaux */
+const cartCount = computed(() => cart.count)
+const buildCount = computed(() => Object.values(build.build).filter(Boolean).length)
+const buildTotal = computed(() => {
+  const n = typeof build.totalPrice === 'number' ? build.totalPrice : 0
+  return n.toFixed(2)
+})
+
+/* Page / user */
 const page = usePage()
-const user = computed(() => page.props.auth.user)
-const isAdmin = computed(() => user.value?.is_admin)
+const user = computed(() => page.props?.auth?.user)
+const isAdmin = computed(() => !!user.value?.is_admin)
 
 /* Actions */
 function logout() { router.post(route('logout')) }
@@ -32,8 +42,26 @@ function isActive(path) {
   return currentPath.value.startsWith(path)
 }
 
+/* classes utilitaires */
+function navLinkClasses(path, base = 'px-3 py-2 rounded-lg text-white/80 hover:text-white hover:bg-white/5 transition-colors') {
+  return [
+    base,
+    isActive(path) && 'bg-white/10 text-white'
+  ]
+}
+
 /* close on navigation */
 watch(() => page.url, () => close())
+
+/* lock body scroll when mobile menu open */
+watch(open, (val) => {
+  const el = document.documentElement
+  if (val) {
+    el.style.overflow = 'hidden'
+  } else {
+    el.style.overflow = ''
+  }
+})
 
 onMounted(() => {
   window.addEventListener('keydown', onKeydown)
@@ -45,6 +73,8 @@ onBeforeUnmount(() => {
   window.removeEventListener('keydown', onKeydown)
   window.removeEventListener('scroll', onScroll)
   window.removeEventListener('resize', onResize)
+  // au cas où
+  document.documentElement.style.overflow = ''
 })
 </script>
 
@@ -82,10 +112,11 @@ onBeforeUnmount(() => {
           </a>
 
           <!-- PCBuilder -->
-          <a
-            href="http://localhost:8000/"
+          <Link
+            href="/"
             class="text-3xl font-bold text-violetdark hover:text-cyan transition-colors"
-          >/ PCBuilder</a>
+            :aria-current="isActive('/') ? 'page' : undefined"
+          >/ PCBuilder</Link>
         </div>
 
         <!-- Bouton burger -->
@@ -106,35 +137,39 @@ onBeforeUnmount(() => {
 
         <!-- Menu desktop -->
         <nav class="hidden md:flex items-center gap-1">
+          <!-- Mon Build (compteurs clairs) -->
           <Link
             href="/builds/create"
-            :class="[
-              'px-3 py-2 rounded-lg text-white/80 hover:text-white hover:bg-white/5 transition-colors',
-              isActive('/builds/create') && 'bg-white/10 text-white'
-            ]"
-          >Créer un Build</Link>
+            :class="navLinkClasses('/builds/create', 'px-3 py-2 rounded-lg text-white bg-white/0 hover:bg-white/10 transition-colors relative')"
+            :aria-current="isActive('/builds/create') ? 'page' : undefined"
+            title="Voir et finaliser mon build"
+          >
+            <span class="inline-flex items-center gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 opacity-90" viewBox="0 0 24 24" fill="currentColor"><path d="M6 3a1 1 0 0 0-1 1v3h2V5h10v2h2V4a1 1 0 0 0-1-1H6z"/><path d="M4 8a2 2 0 0 0-2 2v8a3 3 0 0 0 3 3h14a3 3 0 0 0 3-3v-8a2 2 0 0 0-2-2H4zm2 2h12v10H6V10z"/></svg>
+              <span class="text-white/90">Mon Build</span>
+              <span
+                v-if="buildCount"
+                class="ml-1 min-w-[20px] h-5 px-1 rounded-full text-xs flex items-center justify-center bg-emerald-500 text-white"
+              >{{ buildCount }}</span>
+            </span>
+            <span
+              v-if="buildCount"
+              class="absolute -bottom-5 left-1/2 -translate-x-1/2 text-[11px] text-white/60"
+            >
+              {{ buildTotal }} €
+            </span>
+          </Link>
 
-          <Link
-            href="/builds"
-            :class="[
-              'px-2 py-2 rounded-lg text-white/80 hover:text-white hover:bg-white/5 transition-colors',
-              isActive('/builds') && 'bg-white/10 text-white'
-            ]"
-          >Tous les Builds</Link>
+          <Link href="/builds" :class="navLinkClasses('/builds')">Tous les Builds</Link>
+          <Link href="/components" :class="navLinkClasses('/components')">Tous les composants</Link>
 
-          <Link
-            href="/components"
-            :class="[
-              'px-2 py-2 rounded-lg text-white/80 hover:text-white hover:bg-white/5 transition-colors',
-              isActive('/components') && 'bg-white/10 text-white'
-            ]"
-          >Tous les composants</Link>
-
-          <!-- Panier (route nommée) -->
+          <!-- Panier (checkout) -->
           <Link
             :href="route('checkout.index')"
             class="relative inline-flex items-center gap-2 px-3 py-2 rounded-lg text-white/80 hover:text-white hover:bg-white/5 transition-colors ml-1"
             aria-label="Voir le panier"
+            :aria-current="currentPath.startsWith('/checkout') ? 'page' : undefined"
+            title="Passer commande"
           >
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
@@ -142,50 +177,26 @@ onBeforeUnmount(() => {
             </svg>
             <span>Panier</span>
             <span
-              v-if="count"
+              v-if="cartCount"
               class="absolute -top-1 -right-1 min-w-[20px] h-5 px-1 rounded-full text-xs flex items-center justify-center bg-blue-600 text-white"
-            >{{ count }}</span>
+            >{{ cartCount }}</span>
           </Link>
 
           <a
-            href="https://jarvistech.be/#contact" target="_blank" rel="noopener noreferrer"
+            href="https://jarvistech.be/#contact"
+            target="_blank"
+            rel="noopener noreferrer"
             class="px-2 py-2 rounded-lg text-white/80 hover:text-white hover:bg-white/5 transition-colors"
           >Contact</a>
 
           <template v-if="user">
             <template v-if="isAdmin">
-              <Link
-                href="/admin/dashboard"
-                :class="[
-                  'px-2 py-2 rounded-lg text-white/80 hover:text-white hover:bg-white/5 transition-colors',
-                  isActive('/admin/dashboard') && 'bg-white/10 text-white'
-                ]"
-              >Dashboard Admin</Link>
-
-              <Link
-                href="/admin/compatibility-rules"
-                :class="[
-                  'px-2 py-2 rounded-lg text-white/80 hover:text-white hover:bg-white/5 transition-colors',
-                  isActive('/admin/compatibility-rules') && 'bg-white/10 text-white'
-                ]"
-              >Compatibilités</Link>
+              <Link href="/admin/dashboard" :class="navLinkClasses('/admin/dashboard')">Dashboard Admin</Link>
+              <Link href="/admin/compatibility-rules" :class="navLinkClasses('/admin/compatibility-rules')">Compatibilités</Link>
             </template>
 
-            <Link
-              href="/dashboard"
-              :class="[
-                'px-3 py-2 rounded-lg text-white/80 hover:text-white hover:bg-white/5 transition-colors',
-                isActive('/dashboard') && 'bg-white/10 text-white'
-              ]"
-            >Dashboard</Link>
-
-            <Link
-              href="/profile"
-              :class="[
-                'px-3 py-2 rounded-lg text-white/80 hover:text-white hover:bg-white/5 transition-colors',
-                isActive('/profile') && 'bg-white/10 text-white'
-              ]"
-            >{{ user.name }}</Link>
+            <Link href="/dashboard" :class="navLinkClasses('/dashboard')">Dashboard</Link>
+            <Link href="/profile" :class="navLinkClasses('/profile')">{{ user.name }}</Link>
 
             <button
               @click="logout"
@@ -215,10 +226,16 @@ onBeforeUnmount(() => {
 
         <div id="mobile-menu" class="relative mx-auto max-w-6xl px-4 sm:px-6 pb-4">
           <div class="flex flex-col gap-1 text-white">
-            <!-- Panier mobile (route nommée) -->
+            <!-- Mon Build -->
+            <Link href="/builds/create" class="px-3 py-2 rounded-lg hover:bg-white/5 flex items-center justify-between" @click="close">
+              <span>Mon Build</span>
+              <span v-if="buildCount" class="text-xs px-2 py-0.5 rounded-full bg-emerald-500 text-white">{{ buildCount }} • {{ buildTotal }} €</span>
+            </Link>
+
+            <!-- Panier -->
             <Link :href="route('checkout.index')" class="px-3 py-2 rounded-lg hover:bg-white/5 flex items-center justify-between" @click="close">
               <span>Panier</span>
-              <span v-if="count" class="text-xs px-2 py-0.5 rounded-full bg-blue-600 text-white">{{ count }}</span>
+              <span v-if="cartCount" class="text-xs px-2 py-0.5 rounded-full bg-blue-600 text-white">{{ cartCount }}</span>
             </Link>
 
             <Link href="/builds/create" class="px-3 py-2 rounded-lg hover:bg-white/5" @click="close">Créer un Build</Link>

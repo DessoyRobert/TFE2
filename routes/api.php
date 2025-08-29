@@ -60,8 +60,13 @@ Route::get('brands', [BrandController::class, 'index']);
 Route::get('brands/{brand}', [BrandController::class, 'show']);
 Route::get('categories', [CategoryController::class, 'index']);
 Route::get('categories/{category}', [CategoryController::class, 'show']);
-//Route::post('/checkout', [CheckoutController::class, 'store']); // crée la commande
-//Route::get('/orders/{order}', [CheckoutController::class, 'show']); // détail JSON
+
+Route::middleware(['auth:sanctum'])->group(function () {
+    // Checkout (sauvegarder + commander)
+    Route::post('/checkout', [CheckoutController::class, 'store'])->name('checkout.store');
+    Route::get('/orders/{order}', [CheckoutController::class, 'show'])->name('orders.show');
+});
+
 // Builds utilisateur
 Route::get('builds', [BuildController::class, 'index']);
 Route::get('builds/{build}', [BuildController::class, 'show']);
