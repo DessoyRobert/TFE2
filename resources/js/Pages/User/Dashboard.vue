@@ -1,16 +1,26 @@
-
 <script setup>
 import { router } from '@inertiajs/vue3'
-import { ref } from 'vue'
 
+/**
+ * On reçoit déjà `computed_price` depuis l'API grâce à $appends côté PHP.
+ * Pas besoin de recalculer en front.
+ */
 const props = defineProps({
-  builds: Array
+  builds: {
+    type: Array,
+    default: () => []
+  }
 })
 
 function viewBuild(id) {
   router.visit(`/builds/${id}`)
 }
 
+/** Formateur devise côté client (fr-BE, EUR) */
+function formatEUR(value) {
+  const n = Number(value ?? 0)
+  return n.toLocaleString('fr-BE', { style: 'currency', currency: 'EUR' })
+}
 </script>
 
 <template>
@@ -28,10 +38,20 @@ function viewBuild(id) {
         class="border rounded-xl p-4 bg-white shadow-sm flex flex-col justify-between"
       >
         <div>
-          <h2 class="text-lg font-semibold text-darknavy">{{ build.name }}</h2>
-          <p class="text-sm text-gray-500 mb-2">{{ build.description }}</p>
-          <p class="text-sm text-gray-600 font-medium">Prix : {{ build.price }} €</p>
+          <h2 class="text-lg font-semibold text-darknavy">
+            {{ build.name || 'Build personnalisé' }}
+          </h2>
+          <p v-if="build.description" class="text-sm text-gray-500 mb-2">
+            {{ build.description }}
+          </p>
+
+          <!-- Prix fiable : computed_price fourni par le modèle Laravel -->
+          <p class="text-sm text-gray-600 font-medium">
+            Prix :
+            <strong>{{ formatEUR(build.computed_price ?? 0) }}</strong>
+          </p>
         </div>
+
         <div class="flex gap-2 mt-4">
           <button
             @click="viewBuild(build.id)"
@@ -39,7 +59,6 @@ function viewBuild(id) {
           >
             Voir
           </button>
-
         </div>
       </div>
     </div>

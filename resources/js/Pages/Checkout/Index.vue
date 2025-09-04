@@ -1,11 +1,21 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useCartStore } from '@/stores/cartStore'
-import { usePage } from '@inertiajs/vue3'
+import { usePage, router } from '@inertiajs/vue3'
 
 const cart = useCartStore()
 const page = usePage()
 
+/* ------------------- Helpers ------------------- */
+function createIdempotencyKey () {
+  return (crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`)
+}
+function getQueryParam(name) {
+  try { return new URLSearchParams(window.location.search).get(name) } catch { return null }
+}
+function copyToClipboard(text) { if (text) navigator.clipboard?.writeText(text) }
+
+/* ------------------- Form (facultatif) ------------------- */
 const form = ref({
   customer_first_name: '',
   customer_last_name: '',
@@ -25,39 +35,69 @@ const result = ref(null)
 const errors = ref({})
 const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
 
+/* ------------------- Cart bindings ------------------- */
 const hasItems = computed(() => cart.items.length > 0)
-const normalizedItems = computed(() =>
-  cart.items.map(it => ({
-    type: it.type, // 'build' | 'component'
-    id: Number(it.id),
-    qty: Number(it.qty || 1),
-  }))
+const itemsCount = computed(() => cart.items.reduce((acc, it) => acc + (it.qty ?? 1), 0))
+const buildItemInCart = computed(() => cart.items.find(it => it.type === 'build') || null)
+const componentIdsInCart = computed(() =>
+  cart.items
+    .filter(it => it.type === 'component')
+    .map(it => Number(it.id))
+    .filter(n => Number.isFinite(n))
 )
 
-onMounted(() => {
-  // Pré-remplir depuis l’utilisateur connecté s’il existe
-  const u = page?.props?.auth?.user
-  if (u) {
-    if (!form.value.customer_email && u.email) form.value.customer_email = u.email
-    if (!form.value.customer_first_name && u.name) {
-      const parts = String(u.name).trim().split(/\s+/)
-      form.value.customer_first_name = parts[0] || ''
-      form.value.customer_last_name = parts.slice(1).join(' ')
-    }
-  }
+/* Actions panier */
+function removeItem (item) { cart.remove({ type: item.type, id: item.id }) }
+function clearCart () { if (hasItems.value && confirm('Vider le panier ?')) cart.clear() }
+
+/* ------------------- Paramètre build depuis l’URL -------------------
+   - Flux “Sauvegarder & Commander” → /checkout?build=123
+   - Ici, on AJOUTE ce build au panier (au lieu de commander auto). */
+const buildIdFromQuery = computed(() => {
+  const raw = getQueryParam('build')
+  const n = Number(raw)
+  return Number.isFinite(n) && n > 0 ? n : null
 })
 
-async function submit () {
+/* ------------------- Mapping API → UI ------------------- */
+function mapApiToResult(data) {
+  return {
+    order_id: data?.order_id ?? null,
+    status: data?.status ?? 'pending',
+    payment_status: data?.payment_status ?? 'unpaid',
+    currency: data?.currency ?? 'EUR',
+    bank: data?.bank ?? null,
+    amounts: data?.amounts ?? {
+      subtotal: undefined, shipping: undefined, tax: undefined, discount: undefined, grand: undefined,
+    },
+    redirect_url: data?.redirect_url ?? null,
+  }
+}
+
+/* ------------------- API ------------------- */
+async function placeOrder({ buildId, componentIds = [] }) {
   loading.value = true
   errors.value = {}
-
   try {
+    // Prefill depuis l'utilisateur connecté
+    const u = page?.props?.auth?.user
+    if (u) {
+      if (!form.value.customer_email && u.email) form.value.customer_email = String(u.email)
+      if (!form.value.customer_first_name && !form.value.customer_last_name && u.name) {
+        const parts = String(u.name).trim().split(/\s+/)
+        form.value.customer_first_name = parts[0] || 'Client'
+        form.value.customer_last_name  = parts.slice(1).join(' ') || 'PCBuilder'
+      }
+    }
+
     const payload = {
+      build_id: Number(buildId),
+      // IMPORTANT : on n’envoie des component_ids QUE pour le flux “panier”
+      ...(componentIds.length ? { component_ids: componentIds } : {}),
       ...form.value,
       shipping_country: (form.value.shipping_country || 'BE').toUpperCase(),
       currency: (form.value.currency || 'EUR').toUpperCase(),
       payment_method: form.value.payment_method || 'bank_transfer',
-      items: normalizedItems.value,
     }
 
     const res = await fetch('/checkout', {
@@ -66,28 +106,78 @@ async function submit () {
         'Content-Type': 'application/json',
         ...(csrf ? { 'X-CSRF-TOKEN': csrf } : {}),
         'Accept': 'application/json',
+        'Idempotency-Key': createIdempotencyKey(),
       },
       body: JSON.stringify(payload),
+      credentials: 'same-origin',
     })
 
     const data = await res.json().catch(() => ({}))
 
-    if (!res.ok) {
-      // 422: { errors: { field: [msg] } }
-      errors.value = data.errors ?? { general: ['Erreur serveur'] }
+    if (res.status === 401) {
+      errors.value = { general: ['Connecte-toi pour passer commande.'] }
       return
     }
 
-    result.value = data
-    cart.clear()
+    if (!res.ok) {
+      if (data?.errors) errors.value = data.errors
+      else if (data?.message) errors.value = { general: [data.message] }
+      else errors.value = { general: ['Erreur serveur inattendue.'] }
+      return
+    }
+
+    // Succès
+    result.value = mapApiToResult(data)
+
+    // Redirection si fournie
+    if (result.value.redirect_url) {
+      window.location.replace(result.value.redirect_url)
+      return
+    }
+    if (result.value.order_id) {
+      router.visit(`/checkout/${result.value.order_id}`)
+      return
+    }
   } finally {
     loading.value = false
   }
 }
 
-function copyToClipboard(text) {
-  if (!text) return
-  navigator.clipboard?.writeText(text)
+/* ------------------- Lifecycle ------------------- */
+onMounted(() => {
+  // Pré-remplir depuis l’utilisateur connecté (doublon safe avec placeOrder)
+  const u = page?.props?.auth?.user
+  if (u) {
+    if (!form.value.customer_email && u.email) form.value.customer_email = String(u.email)
+    if (!form.value.customer_first_name && !form.value.customer_last_name && u.name) {
+      const parts = String(u.name).trim().split(/\s+/)
+      form.value.customer_first_name = parts[0] || 'Client'
+      form.value.customer_last_name  = parts.slice(1).join(' ') || 'PCBuilder'
+    }
+  }
+
+  // Si ?build=ID est présent, AJOUTE le build au panier (pas de commande auto)
+  if (buildIdFromQuery.value) {
+    const already = cart.items.find(it =>
+      it.type === 'build' && Number(it.id) === Number(buildIdFromQuery.value)
+    )
+    if (!already) {
+      cart.add({ type: 'build', id: Number(buildIdFromQuery.value), qty: 1 })
+    }
+  }
+})
+
+/* ------------------- Action bouton -------------------
+   - Si un build est présent dans l’URL → on le retrouve normalement dans le panier via onMounted().
+   - On commande le build du panier et (optionnel) les components du panier. */
+async function submit () {
+  errors.value = {}
+  const build = buildItemInCart.value
+  if (!build) {
+    errors.value = { general: ['Ajoute un build au panier ou ouvre le checkout depuis “Sauvegarder & Commander”.'] }
+    return
+  }
+  await placeOrder({ buildId: build.id, componentIds: componentIdsInCart.value })
 }
 </script>
 
@@ -95,14 +185,17 @@ function copyToClipboard(text) {
   <div class="max-w-5xl mx-auto space-y-6 py-6">
     <h1 class="text-2xl font-semibold">Checkout</h1>
 
-    <!-- État succès (instructions de virement) -->
+    <!-- État succès -->
     <div v-if="result" class="grid md:grid-cols-3 gap-6">
       <div class="md:col-span-2 space-y-4 bg-white p-5 rounded-2xl shadow">
         <h2 class="text-xl font-bold">Commande créée</h2>
         <p class="text-gray-700">
-          Merci ! Votre commande <strong>#{{ result.order_id }}</strong> a été créée.
+          Merci ! Votre commande
+          <strong v-if="result.order_id">#{{ result.order_id }}</strong>
+          a été créée.
         </p>
 
+        <!-- Bloc virement (optionnel) -->
         <div v-if="result.bank" class="mt-4 space-y-3">
           <h3 class="font-semibold text-darknavy">Instructions de virement</h3>
           <div class="grid sm:grid-cols-2 gap-3 text-sm">
@@ -137,14 +230,30 @@ function copyToClipboard(text) {
           </p>
         </div>
 
-        <div class="mt-4">
+        <!-- Récap montants (optionnel) -->
+        <div v-if="result.amounts && (result.amounts.subtotal != null || result.amounts.grand != null)" class="mt-4">
           <h3 class="font-semibold">Récapitulatif</h3>
           <ul class="text-sm text-gray-700">
-            <li>Sous-total : <strong>{{ result.amounts.subtotal }} {{ result.currency ?? 'EUR' }}</strong></li>
-            <li>Livraison : <strong>{{ result.amounts.shipping }} {{ result.currency ?? 'EUR' }}</strong></li>
-            <li>TVA : <strong>{{ result.amounts.tax }} {{ result.currency ?? 'EUR' }}</strong></li>
-            <li v-if="Number(result.amounts.discount)">Réduction : <strong>-{{ result.amounts.discount }} {{ result.currency ?? 'EUR' }}</strong></li>
-            <li class="mt-2 text-lg">Total : <strong>{{ result.amounts.grand }} {{ result.currency ?? 'EUR' }}</strong></li>
+            <li v-if="result.amounts.subtotal != null">
+              Sous-total :
+              <strong>{{ result.amounts.subtotal }} {{ result.currency ?? 'EUR' }}</strong>
+            </li>
+            <li v-if="result.amounts.shipping != null">
+              Livraison :
+              <strong>{{ result.amounts.shipping }} {{ result.currency ?? 'EUR' }}</strong>
+            </li>
+            <li v-if="result.amounts.tax != null">
+              TVA :
+              <strong>{{ result.amounts.tax }} {{ result.currency ?? 'EUR' }}</strong>
+            </li>
+            <li v-if="result.amounts.discount != null && Number(result.amounts.discount)">
+              Réduction :
+              <strong>-{{ result.amounts.discount }} {{ result.currency ?? 'EUR' }}</strong>
+            </li>
+            <li v-if="result.amounts.grand != null" class="mt-2 text-lg">
+              Total :
+              <strong>{{ result.amounts.grand }} {{ result.currency ?? 'EUR' }}</strong>
+            </li>
           </ul>
         </div>
       </div>
@@ -152,15 +261,17 @@ function copyToClipboard(text) {
       <aside class="bg-white p-4 rounded-2xl shadow space-y-3 h-fit sticky top-4">
         <h2 class="font-semibold">Statut</h2>
         <p class="text-sm text-gray-700">
-          Commande #{{ result.order_id }} — <strong>{{ result.status }}</strong><br>
+          Commande
+          <template v-if="result.order_id">#{{ result.order_id }} — </template>
+          <strong>{{ result.status }}</strong><br>
           Paiement : <strong>{{ result.payment_status }}</strong>
         </p>
       </aside>
     </div>
 
-    <!-- Formulaire + Récap (quand pas encore validé) -->
+    <!-- Form + Récap (avant validation) -->
     <div v-else class="grid md:grid-cols-3 gap-6">
-      <!-- Infos client -->
+      <!-- Infos client (facultatif) -->
       <div class="md:col-span-2 space-y-3 bg-white p-5 rounded-2xl shadow">
         <div class="grid grid-cols-2 gap-3">
           <div>
@@ -215,6 +326,8 @@ function copyToClipboard(text) {
             <select v-model="form.payment_method" class="border p-2 rounded w-full">
               <option value="bank_transfer">Virement</option>
               <option value="cod">Paiement à la livraison</option>
+              <option value="card">Carte</option>
+              <option value="cash">Cash</option>
             </select>
             <p v-if="errors.payment_method" class="text-sm text-red-600 mt-1">{{ errors.payment_method[0] }}</p>
           </div>
@@ -228,32 +341,65 @@ function copyToClipboard(text) {
         <p v-if="errors.general" class="text-red-600 text-sm mt-1">{{ errors.general[0] }}</p>
       </div>
 
-      <!-- Récap panier -->
+      <!-- Récap panier + actions -->
       <aside class="bg-white p-4 rounded-2xl shadow space-y-4 h-fit sticky top-4">
-        <h2 class="font-semibold">Récapitulatif</h2>
-
-        <div v-if="!hasItems" class="text-sm text-gray-500">
-          Panier vide.
+        <div class="flex items-center justify-between">
+          <h2 class="font-semibold">Récapitulatif</h2>
+          <span class="text-xs text-gray-500" v-if="hasItems">{{ itemsCount }} article(s)</span>
         </div>
 
-        <ul v-else class="space-y-1 text-sm">
+        <div v-if="!hasItems" class="text-sm text-gray-500">
+          Panier vide. Si tu es arrivé depuis “Sauvegarder & Commander”, le build a été ajouté au panier automatiquement.
+        </div>
+
+        <ul v-else class="space-y-2 text-sm">
           <li
             v-for="(it, idx) in cart.items"
-            :key="idx"
-            class="flex justify-between"
+            :key="`${it.type}:${it.id}:${idx}`"
+            class="flex items-center justify-between gap-2"
           >
-            <span class="capitalize">{{ it.type }} #{{ it.id }}</span>
-            <span>× {{ it.qty }}</span>
+            <div class="min-w-0">
+              <div class="font-medium truncate capitalize">{{ it.type }} #{{ it.id }}</div>
+              <div class="text-gray-500">× {{ it.qty }}</div>
+            </div>
+            <button
+              type="button"
+              class="px-2 py-1 rounded border text-gray-700 hover:bg-gray-50"
+              @click="removeItem(it)"
+              :aria-label="`Retirer ${it.type} #${it.id}`"
+            >
+              Retirer
+            </button>
           </li>
         </ul>
 
-        <button
-          :disabled="loading || !hasItems"
-          @click="submit"
-          class="w-full py-2 rounded-2xl bg-blue-600 text-white disabled:opacity-50"
-        >
-          {{ loading ? 'Traitement...' : 'Passer la commande' }}
-        </button>
+        <div class="flex items-center justify-between gap-2" v-if="hasItems">
+          <button
+            type="button"
+            class="px-3 py-2 rounded-2xl border hover:bg-gray-50"
+            @click="clearCart"
+          >
+            Vider le panier
+          </button>
+
+          <button
+            :disabled="loading"
+            @click="submit"
+            class="py-2 px-4 rounded-2xl bg-blue-600 text-white disabled:opacity-50"
+          >
+            {{ loading ? 'Traitement...' : 'Passer la commande' }}
+          </button>
+        </div>
+
+        <div v-else>
+          <button
+            :disabled="loading"
+            @click="submit"
+            class="w-full py-2 rounded-2xl bg-blue-600 text-white disabled:opacity-50"
+          >
+            {{ loading ? 'Traitement...' : 'Passer la commande' }}
+          </button>
+        </div>
       </aside>
     </div>
   </div>

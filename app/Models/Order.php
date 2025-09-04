@@ -16,16 +16,16 @@ class Order extends Model
         'status', 'payment_method', 'payment_status', 'currency', 'meta'
     ];
 
-protected $casts = [
-    'subtotal' => 'decimal:2',
-    'shipping_cost' => 'decimal:2',
-    'discount_total' => 'decimal:2',
-    'tax_total' => 'decimal:2',
-    'grand_total' => 'decimal:2',
-    'payment_deadline' => 'datetime',
-    'payment_received_at' => 'datetime',
-];
-
+    protected $casts = [
+        'subtotal' => 'decimal:2',
+        'shipping_cost' => 'decimal:2',
+        'discount_total' => 'decimal:2',
+        'tax_total' => 'decimal:2',
+        'grand_total' => 'decimal:2',
+        'payment_deadline' => 'datetime',
+        'payment_received_at' => 'datetime',
+        'meta' => 'array', // 👈 important pour stocker idempotency_key & co
+    ];
 
     public function items(): HasMany { return $this->hasMany(OrderItem::class); }
     public function payments(): HasMany { return $this->hasMany(Payment::class); }

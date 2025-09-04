@@ -1,106 +1,119 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use Illuminate\Foundation\Application;
 use Inertia\Inertia;
 
+// Pages publiques (Inertia)
 use App\Http\Controllers\ComponentController;
 use App\Http\Controllers\BuildController;
+
+// Espace utilisateur
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\User\UserDashboardController;
-use App\Http\Controllers\CheckoutController; // ← manquait
+
+// API pour SPA (session web + auth)
+use App\Http\Controllers\Api\BuildController as ApiBuildController;
+use App\Http\Controllers\Api\CheckoutController as ApiCheckoutController;
+
+// Admin Panel
 use App\Http\Controllers\Admin\ImageController;
 use App\Http\Controllers\Admin\OrderController as AdminOrderController;
+use App\Http\Controllers\Admin\ComponentController as AdminComponentController;
+use App\Http\Controllers\Admin\BuildController as AdminBuildController;
+use App\Http\Controllers\Admin\UserController as AdminUserController;
+use App\Http\Controllers\Admin\BrandController as AdminBrandController;
+use App\Http\Controllers\Admin\CategoryController as AdminCategoryController;
+use App\Http\Controllers\Admin\ComponentTypeController as AdminComponentTypeController;
+use App\Http\Controllers\Admin\CompatibilityRuleController as AdminCompatibilityRuleController;
+use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 
 /*
 |--------------------------------------------------------------------------
-| Routes publiques
+| Routes PUBLIQUES (pages)
 |--------------------------------------------------------------------------
 */
-
-// Accueil → liste des builds publics
 Route::get('/', [BuildController::class, 'index'])->name('builds.index');
 
-// Liste paginée des composants (Inertia)
 Route::get('/components', [ComponentController::class, 'indexPage'])->name('components.index');
-
-// Page de détail d’un composant
 Route::get('/components/{component}/details', [ComponentController::class, 'showDetailPage'])->name('components.details');
 
-// Builds publics : consultation/ajout
+// Builds (pages Inertia)
 Route::resource('builds', BuildController::class)->only(['index', 'create', 'show', 'store']);
 
 /*
 |--------------------------------------------------------------------------
-| Dashboard + pages réservées (auth)
+| Espace UTILISATEUR (auth)
 |--------------------------------------------------------------------------
 */
 Route::middleware(['auth', 'verified'])->group(function () {
-    // Dashboard utilisateur
     Route::get('/dashboard', [UserDashboardController::class, 'index'])->name('dashboard');
 
-    // Checkout réservé aux utilisateurs connectés
+    // Pages Checkout (Inertia)
     Route::get('/checkout', fn () => Inertia::render('Checkout/Index'))->name('checkout.index');
-    Route::post('/checkout', [CheckoutController::class, 'store'])->name('checkout.store'); // POST web (création commande)
-    Route::get('/orders/{order}', [CheckoutController::class, 'show'])->name('orders.show'); // lecture commande (user)
+
+    // Création de commande -> API controller
+    Route::post('/checkout', [ApiCheckoutController::class, 'store'])->name('checkout.store');
+
+    // Page détail commande (pour correspondre à route('checkout.show', ['order' => ...]))
+    Route::get('/checkout/{order}', function (\App\Models\Order $order) {
+        return Inertia::render('Checkout/Index', ['orderId' => $order->id]);
+    })->name('checkout.show');
 });
 
-/*
-|--------------------------------------------------------------------------
-| Gestion du profil utilisateur (auth)
-|--------------------------------------------------------------------------
-*/
+// Gestion du profil
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
-    Route::post('/checkout', [CheckoutController::class, 'store'])
-    ->name('checkout.store');
 });
 
 /*
 |--------------------------------------------------------------------------
-| Routes ADMIN PANEL (protégées par auth + is_admin)
+| API pour SPA (même domaine) — protégée par session web + auth
+| → Ces routes sont appelées par le front Vue/Inertia (POST/PUT) et lisent la session.
+|--------------------------------------------------------------------------
+*/
+Route::prefix('api')->middleware(['web', 'auth'])->group(function () {
+    // Build (actions d’écriture)
+    Route::post('/builds', [ApiBuildController::class, 'store'])->name('api.builds.store');
+    Route::put('/builds/{build}', [ApiBuildController::class, 'update'])->name('api.builds.update');
+});
+
+/*
+|--------------------------------------------------------------------------
+| ADMIN PANEL (auth + is_admin)
 |--------------------------------------------------------------------------
 */
 Route::middleware(['auth', 'is_admin'])
     ->prefix('admin')
     ->name('admin.')
     ->group(function () {
-        // Dashboard admin
-        Route::get('/dashboard', [\App\Http\Controllers\Admin\DashboardController::class, 'index'])->name('dashboard');
+        // Dashboard
+        Route::get('/dashboard', [AdminDashboardController::class, 'index'])->name('dashboard');
 
-        // --- Commandes (Inertia + mises à jour statut)
+        // Commandes (Inertia + JSON utilitaires)
         Route::get('/orders', [AdminOrderController::class, 'index'])->name('orders.index');
+        Route::get('/orders/list', [AdminOrderController::class, 'list'])->name('orders.list'); // avant {order}
+        Route::get('/orders/{order}', [AdminOrderController::class, 'show'])->name('orders.show');
         Route::patch('/orders/{order}/status', [AdminOrderController::class, 'updateStatus'])->name('orders.updateStatus');
+        Route::post('/orders', [AdminOrderController::class, 'store'])->name('orders.store');
+        Route::post('/orders/{order}/items', [AdminOrderController::class, 'addItem'])->name('orders.items.add');
+        Route::delete('/orders/{order}/items/{orderItemId}', [AdminOrderController::class, 'removeItem'])->name('orders.items.remove');
+        Route::post('/orders/{order}/mark-paid', [AdminOrderController::class, 'markPaid'])->name('orders.markPaid');
 
-        // --- JSON admin existant (IMPORTANT: avant {order} pour éviter la capture)
-        Route::get('/orders/list', [AdminOrderController::class, 'list'])->name('orders.list');
+        // Ressources admin (CRUD)
+        Route::resource('components', AdminComponentController::class);
+        Route::resource('builds', AdminBuildController::class);
+        Route::resource('users', AdminUserController::class);
+        Route::resource('brands', AdminBrandController::class);
+        Route::resource('categories', AdminCategoryController::class);
+        Route::resource('component-types', AdminComponentTypeController::class);
+        Route::resource('compatibility-rules', AdminCompatibilityRuleController::class);
 
-        // --- JSON admin (gestion avancée) : détail / création / items / paiement
-        Route::get('/orders/{order}', [AdminOrderController::class, 'show'])->name('orders.show');                      // détail JSON
-        Route::post('/orders', [AdminOrderController::class, 'store'])->name('orders.store');                           // création commande
-        Route::post('/orders/{order}/items', [AdminOrderController::class, 'addItem'])->name('orders.items.add');       // ajouter item
-        Route::delete('/orders/{order}/items/{orderItemId}', [AdminOrderController::class, 'removeItem'])
-            ->name('orders.items.remove');                                                                              // retirer item
-        Route::post('/orders/{order}/mark-paid', [AdminOrderController::class, 'markPaid'])->name('orders.markPaid');   // marquer payé
-
-        // (Option) Version JSON pour updateStatus pour un flux 100% AJAX
-        // Route::patch('/orders/{order}/status/json', [AdminOrderController::class, 'updateStatusJson'])->name('orders.updateStatusJson');
-
-        // Ressources admin
-        Route::resource('components', \App\Http\Controllers\Admin\ComponentController::class);
-        Route::resource('builds', \App\Http\Controllers\Admin\BuildController::class);
-        Route::resource('users', \App\Http\Controllers\Admin\UserController::class);
-        Route::resource('brands', \App\Http\Controllers\Admin\BrandController::class);
-        Route::resource('categories', \App\Http\Controllers\Admin\CategoryController::class);
-        Route::resource('component-types', \App\Http\Controllers\Admin\ComponentTypeController::class);
-        Route::resource('compatibility-rules', \App\Http\Controllers\Admin\CompatibilityRuleController::class);
-
-        // Upload d’images
+        // Upload images
         Route::get('/images/upload', [ImageController::class, 'uploadPage'])->name('images.upload');
         Route::post('/images', [ImageController::class, 'store'])->name('images.store');
     });
 
-// Auth (login/register/...)
-require __DIR__.'/auth.php';
+// Auth scaffolding (Breeze/Jetstream/etc.)
+require __DIR__ . '/auth.php';

@@ -3,7 +3,7 @@ import axios from 'axios'
 
 export const useBuildStore = defineStore('build', {
   state: () => ({
-    // État du build
+    // État du build (tous uniques côté UI ; "storage" peut devenir multi plus tard)
     build: {
       cpu: null,
       gpu: null,
@@ -12,7 +12,7 @@ export const useBuildStore = defineStore('build', {
       storage: null,
       psu: null,
       cooler: null,
-      case_model: null, // clé boîtier côté state
+      case_model: null, // boîtier
     },
     buildName: '',
     buildDescription: '',
@@ -40,7 +40,7 @@ export const useBuildStore = defineStore('build', {
       if (!type) return true
       const list = state.compatibility?.[type]
       if (!Array.isArray(list) || list.length === 0) return true
-      const compId = typeof id === 'number' ? id : Number(id)
+      const compId = Number(id)
       return list.includes(compId)
     },
   },
@@ -51,7 +51,7 @@ export const useBuildStore = defineStore('build', {
       if (!raw) return ''
       let k = ''
       if (typeof raw === 'string') k = raw
-      else if (typeof raw === 'object' && raw.name) k = raw.name
+      else if (typeof raw === 'object' && (raw.name || raw.slug)) k = raw.name || raw.slug
       k = (k || '').trim().toLowerCase()
 
       switch (k) {
@@ -74,6 +74,7 @@ export const useBuildStore = defineStore('build', {
           return 'motherboard'
 
         case 'storage':
+        case 'stockage':
         case 'ssd':
         case 'hdd':
           return 'storage'
@@ -92,6 +93,7 @@ export const useBuildStore = defineStore('build', {
         case 'case model':
         case 'case_model':
         case 'case-model':
+        case 'chassis':
         case 'boîtier':
         case 'boitier':
           return 'case_model'
@@ -101,9 +103,11 @@ export const useBuildStore = defineStore('build', {
       }
     },
 
-    // Déduit le type à partir de la structure du composant (string ou objet)
+    // Déduit le type depuis divers formats d'objet (name/slug)
     resolveTypeFromComponent(component) {
       const rawType =
+        component?.type?.slug ??
+        component?.component_type?.slug ??
         component?.type?.name ??
         component?.type ??
         component?.component_type?.name ??
@@ -112,7 +116,7 @@ export const useBuildStore = defineStore('build', {
       return this.normalizeType(rawType)
     },
 
-    // API haut-niveau : ajoute un composant “brut” (pratique pour Details.vue / index.vue)
+    // API haut-niveau : ajoute un composant “brut”
     addFromComponent(component) {
       const key = this.resolveTypeFromComponent(component)
       if (!key || !Object.prototype.hasOwnProperty.call(this.build, key)) {
@@ -159,11 +163,18 @@ export const useBuildStore = defineStore('build', {
       }
     },
 
+    // Liste des IDs normalisés pour l'API (préférence component_id)
+    getComponentIds() {
+      return Object.values(this.build)
+        .filter(Boolean)
+        .map(c => c.component_id ?? c.id)
+        .map(v => Number(v))
+        .filter(v => Number.isFinite(v))
+    },
+
     // Validation distante (debounced) + compatibilité proactive
     validateBuild() {
-      const ids = Object.values(this.build)
-        .filter(Boolean)
-        .map(c => c.id ?? c.component_id)
+      const ids = this.getComponentIds()
 
       if (this.lastRequest) clearTimeout(this.lastRequest)
 
@@ -175,12 +186,22 @@ export const useBuildStore = defineStore('build', {
           const res = await axios.post('/api/builds/validate-temp', {
             component_ids: ids
           })
+
           this.errors = res.data?.errors || []
           this.warnings = res.data?.warnings || []
-          // Back possible: "compatible" ou "compatible_ids" -> on tolère les deux clés
-          this.compatibility = res.data?.compatible
-            || res.data?.compatible_ids
-            || {}
+
+          // Back possible: "compatible" ou "compatible_ids"
+          const rawCompat = res.data?.compatible || res.data?.compatible_ids || {}
+          const numericCompat = {}
+
+          Object.keys(rawCompat).forEach(k => {
+            const arr = Array.isArray(rawCompat[k]) ? rawCompat[k] : []
+            numericCompat[k] = arr
+              .map(v => Number(v))
+              .filter(v => Number.isFinite(v))
+          })
+
+          this.compatibility = numericCompat
         } catch (e) {
           this.errors = ['Erreur serveur lors de la validation.']
           this.compatibility = {}
@@ -188,6 +209,24 @@ export const useBuildStore = defineStore('build', {
           this.validating = false
         }
       }, 300)
+    },
+
+    // Éléments requis (simple baseline, à adapter si besoin)
+    missingRequired() {
+      const required = ['cpu', 'motherboard', 'ram', 'storage', 'psu', 'case_model']
+      const missing = []
+      for (const k of required) {
+        if (!this.build[k]) missing.push(
+          k === 'case_model' ? 'Boîtier' :
+          k === 'psu' ? 'Alimentation' :
+          k.charAt(0).toUpperCase() + k.slice(1)
+        )
+      }
+      return missing
+    },
+
+    isValid() {
+      return this.missingRequired().length === 0 && this.errors.length === 0
     },
   },
 

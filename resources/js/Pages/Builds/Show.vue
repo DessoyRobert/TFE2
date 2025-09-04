@@ -40,11 +40,16 @@ function addToCart() {
   cart.add({ type: 'build', id: props.build.id, qty: 1 })
 }
 
-function addAndCheckout() {
-  addToCart()
-  const href = typeof route !== 'undefined' ? route('checkout.index') : '/checkout'
-  router.visit(href)
+async function addAndCheckout() {
+  if (!props.build?.id) return
+  cart.add({ type: 'build', id: props.build.id, qty: 1 })
+  if (typeof cart.flush === 'function') await cart.flush()
+  requestAnimationFrame(() => {
+    const href = typeof route !== 'undefined' ? route('checkout.index') : '/checkout'
+    router.visit(href)
+  })
 }
+
 
 /** → Patch Recréer : hydrate Create.vue via sessionStorage */
 function recreate() {

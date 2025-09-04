@@ -1,9 +1,20 @@
 <script setup>
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { Link, router } from '@inertiajs/vue3'
-import { useBuildStore } from '@/stores/buildStore' // shim -> pointe vers useBuildStore
+import { useBuildStore } from '@/stores/buildStore'
 import { useCartStore } from '@/stores/cartStore'
 import ComponentCard from '@/Components/ComponentCard.vue'
+import axios from 'axios'
+
+// ---------- Utils ----------
+function createIdempotencyKey () {
+  return (crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`)
+}
+function normalizeIds(arr) {
+  return (Array.isArray(arr) ? arr : [])
+    .map(v => (typeof v === 'number' || /^\d+$/.test(String(v))) ? Number(v) : null)
+    .filter(Boolean)
+}
 
 // ---------- UI état / modale ----------
 const showModal = ref(false)
@@ -11,7 +22,7 @@ const modalMessage = ref('')
 
 function onModalClose() {
   showModal.value = false
-  router.visit(route('builds.index'))
+  router.visit('/builds')
 }
 
 // ---------- Stores ----------
@@ -27,14 +38,12 @@ const categories = [
   { key: 'storage',      label: 'Stockage',         endpoint: '/api/storages' },
   { key: 'psu',          label: 'Alimentation',     endpoint: '/api/psus' },
   { key: 'cooler',       label: 'Refroidissement',  endpoint: '/api/coolers' },
-  { key: 'case_model',   label: 'Boîtier',          endpoint: '/api/case-models' }
+  { key: 'case_model',   label: 'Boîtier',          endpoint: '/api/case-models' },
 ]
 
 const selectedCategory = ref(categories[0])
 const items = ref([])
 const loading = ref(false)
-
-const eur = new Intl.NumberFormat('fr-BE', { style: 'currency', currency: 'EUR' })
 
 function pickImageUrl(item) {
   const url =
@@ -81,27 +90,25 @@ function removeComponent(key) {
 }
 
 // ---------- Totaux / validations ----------
-const totalPrice = computed(() => {
-  return Object.values(buildStore.build)
+const totalPrice = computed(() =>
+  Object.values(buildStore.build)
     .filter(Boolean)
     .reduce((sum, comp) => sum + (parseFloat(comp.price) || 0), 0)
-})
+)
+
 const isBuildEmpty = computed(() =>
   Object.values(buildStore.build).filter(Boolean).length === 0
 )
 
-const missingList = computed(() => (typeof buildStore.missingRequired === 'function'
-  ? buildStore.missingRequired()
-  : []))
-
-const disableSave = computed(() =>
-  buildStore.errors.length > 0 || isBuildEmpty.value
+const missingList = computed(() =>
+  typeof buildStore.missingRequired === 'function' ? buildStore.missingRequired() : []
 )
 
+const disableSave = computed(() => buildStore.errors.length > 0 || isBuildEmpty.value)
+
 const disableCheckout = computed(() =>
-  buildStore.errors.length > 0 || !(
-    typeof buildStore.isValid === 'function' ? buildStore.isValid() : !isBuildEmpty.value
-  )
+  buildStore.errors.length > 0 ||
+  !(typeof buildStore.isValid === 'function' ? buildStore.isValid() : !isBuildEmpty.value)
 )
 
 // Filtrage par compatibilité
@@ -118,120 +125,106 @@ const visibleItems = computed(() => {
 
 // ---------- Helper: construire component_ids pour l'API builds ----------
 function getComponentIds () {
-  return Object.values(buildStore.build)
-    .filter(Boolean)
-    .map(c => c.id ?? c.component_id)
-    .filter(Boolean)
+  return normalizeIds(
+    Object.values(buildStore.build)
+      .filter(Boolean)
+      .map(c => c.id ?? c.component_id)
+  )
 }
 
-// ---------- Sauvegarder (web) ----------
+// ---------- Sauvegarder (API JSON) ----------
 const savingBuild = ref(false)
-function saveBuild() {
-  if (disableSave.value) return
-  savingBuild.value = true
 
-  // On utilise le payload du store mais on le convertit pour le contrôleur web:
-  // toPayload() => { name, description, img_url, price, components:[{id,type}] }
-  const payload = typeof buildStore.toPayload === 'function'
-    ? buildStore.toPayload()
-    : {
+async function saveBuild() {
+  if (disableSave.value || savingBuild.value) return
+  savingBuild.value = true
+  try {
+    const component_ids = getComponentIds()
+    if (!component_ids.length) throw new Error('Aucun composant sélectionné.')
+
+    const idempotencyKey = createIdempotencyKey()
+    const { data } = await axios.post(
+      '/api/builds',
+      {
         name: 'Build personnalisé',
         description: '',
         img_url: null,
-        price: Number(totalPrice.value.toFixed(2)),
-        components: Object.values(buildStore.build)
-          .filter(Boolean)
-          .map(c => ({ id: c.id ?? c.component_id })),
-      }
+        component_ids,
+      },
+      { headers: { 'Idempotency-Key': idempotencyKey } }
+    )
 
-  // Format attendu côté BuildController (web): components: [{ component_id }]
-  const componentsPayload = (payload.components || []).map(c => ({ component_id: c.id }))
-  const body = {
-    name: payload.name,
-    description: payload.description || '',
-    img_url: payload.img_url || '',
-    price: Number(payload.price ?? 0).toFixed(2),
-    components: componentsPayload,
-  }
-
-  router.post('/builds', body, {
-    onSuccess: () => {
-      modalMessage.value = 'Build sauvegardé avec succès !'
+    if (data?.ok && data?.build_id) {
+      modalMessage.value = 'Build sauvegardé avec succès.'
       showModal.value = true
-      savingBuild.value = false
-    },
-    onError: () => {
-      modalMessage.value = 'Erreur lors de la sauvegarde.'
-      showModal.value = true
-      savingBuild.value = false
+    } else {
+      throw new Error(data?.message || 'Sauvegarde non confirmée.')
     }
-  })
+  } catch (e) {
+    console.error('SAVE ERROR', e?.response?.data || e)
+    const msg = e?.response?.data?.message || e?.message || 'Impossible de sauvegarder le build.'
+    modalMessage.value = msg
+    showModal.value = true
+  } finally {
+    savingBuild.value = false
+  }
 }
 
-// ---------- Sauvegarder & Commander (API JSON) ----------
+// ---------- Sauvegarder & Commander ----------
 const savingAndCheckout = ref(false)
 
 async function saveAndCheckout() {
-  if (disableCheckout.value) return
+  if (disableCheckout.value || savingAndCheckout.value) return
   savingAndCheckout.value = true
 
   try {
     const component_ids = getComponentIds()
-    if (!component_ids.length) {
-      throw new Error('Aucun composant sélectionné.')
+    if (!component_ids.length) throw new Error('Aucun composant sélectionné.')
+
+    // 1) Créer le build (idempotent)
+    const idemBuild = createIdempotencyKey()
+    const { data } = await axios.post(
+      '/api/builds',
+      { name: 'Build personnalisé', description: '', img_url: null, component_ids },
+      { headers: { 'Idempotency-Key': idemBuild, Accept: 'application/json' } }
+    )
+
+    if (!data?.ok || !data?.build_id) {
+      throw new Error(data?.message || 'Impossible de sauvegarder le build.')
     }
 
-    // 1) Créer le build (API) — le contrôleur attend component_ids[]
-    const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
-    const res = await fetch('/api/builds', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        ...(csrf ? { 'X-CSRF-TOKEN': csrf } : {})
-      },
-      body: JSON.stringify({
-        name: 'Build personnalisé',
-        description: '',
-        component_ids, // <-- IMPORTANT: correspond aux règles du Api\BuildController@store
-      })
-    })
-
-    const build = await res.json().catch(() => ({}))
-    if (!res.ok || !build?.id) {
-      throw new Error(build?.message || 'Impossible de sauvegarder le build.')
-    }
-
-    // 2) Checkout : le back déduit les composants via build_id (PlaceOrderRequest rules OK)
-    const res2 = await fetch('/api/checkout', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        ...(csrf ? { 'X-CSRF-TOKEN': csrf } : {})
-      },
-      body: JSON.stringify({ build_id: build.id })
-    })
-
-    const out = await res2.json().catch(() => ({}))
-    if (!res2.ok) {
-      throw new Error(out?.message || 'Échec du checkout.')
-    }
-
-    if (out?.redirect_url) {
-      window.location.href = out.redirect_url
+    // 2) Rediriger vers le Checkout avec le build (PAS de création d’ordre ici)
+    //    - Le contrôleur renvoie déjà `redirect_url: /checkout?build={id}`.
+    //    - Sinon, on reconstruit l’URL de secours.
+    if (data.redirect_url) {
+      window.location.replace(data.redirect_url)            // ex: /checkout?build=123
     } else {
-      modalMessage.value = 'Commande créée.'
-      showModal.value = true
+      router.visit(`/checkout?build=${data.build_id}`)      // fallback
     }
+
+    // NOTE :
+    // La création de l’ordre (POST /checkout) se fera depuis la page Checkout
+    // via `placeOrder({ buildId })`, éventuellement après que l’utilisateur
+    // complète/valide le formulaire. On évite ainsi de vider le panier par erreur
+    // et on garde un flux clair.
+
   } catch (e) {
-    console.error(e)
-    modalMessage.value = e?.message || 'Échec de la sauvegarde & commande.'
+    // Gestion des erreurs (401/422/500) : on reste sur place et on affiche la modale
+    console.error('SAVE&CHECKOUT ERROR', e?.response?.data || e)
+    const status = e?.response?.status
+    if (status === 401) {
+      modalMessage.value = 'Connecte-toi pour passer commande.'
+    } else if (status === 422) {
+      modalMessage.value = e?.response?.data?.message || 'Données invalides.'
+    } else {
+      modalMessage.value = e?.response?.data?.message || e?.message || 'Impossible de sauvegarder & commander.'
+    }
     showModal.value = true
   } finally {
     savingAndCheckout.value = false
   }
 }
+
 
 // ---------- Responsive panels (mobile) ----------
 const openCats = ref(false)
@@ -247,33 +240,27 @@ onMounted(async () => {
   window.addEventListener('keydown', onKeydown)
   window.addEventListener('resize', onResize)
 
-  // 1) Priorité: build complet (le plus fiable)
+  // Recréer depuis sessionStorage (si on vient de "Recréer")
   try {
     const rawBuild = sessionStorage.getItem('rebuild_build')
     if (rawBuild) {
       const full = JSON.parse(rawBuild)
       if (typeof buildStore.reset === 'function') buildStore.reset()
-      if (typeof buildStore.fillFromBuild === 'function') {
-        buildStore.fillFromBuild(full)
-      }
+      if (typeof buildStore.fillFromBuild === 'function') buildStore.fillFromBuild(full)
       sessionStorage.removeItem('rebuild_build')
     } else {
-      // 2) Fallback: ancien payload minimal (si présent)
       const raw = sessionStorage.getItem('rebuild_payload')
       if (raw) {
-        const items = JSON.parse(raw) || []
+        const arr = JSON.parse(raw) || []
         if (typeof buildStore.reset === 'function') buildStore.reset()
-        for (const c of items) {
+        for (const c of arr) {
           const key = typeof buildStore.normalizeType === 'function'
             ? buildStore.normalizeType(c.type_key)
             : (c.type_key || '')
           if (!key) continue
           if (typeof buildStore.addComponent === 'function') {
             buildStore.addComponent(key, {
-              id: c.id,
-              component_id: c.id,
-              name: c.name,
-              price: c.price,
+              id: c.id, component_id: c.id, name: c.name, price: c.price,
             })
           } else if (buildStore.build && Object.prototype.hasOwnProperty.call(buildStore.build, key)) {
             buildStore.build[key] = { id: c.id, name: c.name, price: c.price }
@@ -296,16 +283,14 @@ onBeforeUnmount(() => {
   window.removeEventListener('resize', onResize)
 })
 
-// Déclenche la validation (debounced côté store) à chaque changement du build
+// Déclenche la validation à chaque changement du build
 watch(
   () => buildStore.build,
   () => {
     buildStore.validateBuild?.()
     setTimeout(() => {
       if (buildStore.errors.length) {
-        document
-          .getElementById('validation-panel')
-          ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+        document.getElementById('validation-panel')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
       }
     }, 400)
   },
@@ -340,7 +325,7 @@ loadItems(selectedCategory.value)
 
       <div class="flex gap-6">
         <!-- Sidebar catégories (desktop) -->
-        <aside class="hidden md:block w-64 bg-darknavy text-white p-4 space-y-2 rounded-xl sticky top-24 self-start ">
+        <aside class="hidden md:block w-64 bg-darknavy text-white p-4 space-y-2 rounded-xl sticky top-24 self-start">
           <h2 class="text-lg font-bold mb-4">Catégories</h2>
           <ul class="space-y-2">
             <li v-for="cat in categories" :key="cat.key">
@@ -494,7 +479,7 @@ loadItems(selectedCategory.value)
       @click="closePanels"
     ></div>
 
-    <!-- Panneau mobile : Catégories (slide gauche) -->
+    <!-- Panneau mobile : Catégories -->
     <Transition
       enter-active-class="transition duration-200 ease-out"
       enter-from-class="-translate-x-full opacity-0"
@@ -529,13 +514,13 @@ loadItems(selectedCategory.value)
       </aside>
     </Transition>
 
-    <!-- Panneau mobile : Résumé (slide droite) -->
+    <!-- Panneau mobile : Résumé -->
     <Transition
       enter-active-class="transition duration-200 ease-out"
       enter-from-class="translate-x-full opacity-0"
       enter-to-class="translate-x-0 opacity-100"
       leave-active-class="transition duration-150 ease-in"
-      leave-from-class="translate-x-0 opacity-100"
+      leave-from-class="translate-x-0 opacity-0"
       leave-to-class="translate-x-full opacity-0"
     >
       <aside
@@ -579,24 +564,6 @@ loadItems(selectedCategory.value)
 
         <div class="mt-4 font-bold text-lg">
           Total : {{ totalPrice.toFixed(2) }} €
-        </div>
-
-        <div class="mb-4 mt-4">
-          <div v-if="buildStore.validating" class="text-sm text-gray-600">Validation en cours…</div>
-
-          <div v-if="buildStore.errors.length" class="rounded-lg bg-red-50 border border-red-200 p-3 text-red-800">
-            <p class="font-semibold mb-1">Erreurs de compatibilité</p>
-            <ul class="list-disc pl-5">
-              <li v-for="(e,i) in buildStore.errors" :key="'errm-'+i">{{ e }}</li>
-            </ul>
-          </div>
-
-          <div v-if="buildStore.warnings.length" class="rounded-lg bg-yellow-50 border border-yellow-200 p-3 text-yellow-800">
-            <p class="font-semibold mb-1">Avertissements</p>
-            <ul class="list-disc pl-5">
-              <li v-for="(w,i) in buildStore.warnings" :key="'warnm-'+i">{{ w }}</li>
-            </ul>
-          </div>
         </div>
 
         <div class="mt-auto w-full flex flex-col gap-2">
