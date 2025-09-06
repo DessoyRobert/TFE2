@@ -6,6 +6,11 @@ import { usePage, router } from '@inertiajs/vue3'
 const cart = useCartStore()
 const page = usePage()
 
+//Hydratation possible depuis /checkout/{order}
+const props = defineProps({
+  serverResult: { type: Object, default: null }
+})
+
 /* ------------------- Helpers ------------------- */
 function createIdempotencyKey () {
   return (crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`)
@@ -145,6 +150,11 @@ async function placeOrder({ buildId, componentIds = [] }) {
 
 /* ------------------- Lifecycle ------------------- */
 onMounted(() => {
+  //Si on arrive depuis /checkout/{order}, hydrate l'état succès
+  if (props.serverResult) {
+    result.value = mapApiToResult(props.serverResult)
+  }
+
   // Pré-remplir depuis l’utilisateur connecté (doublon safe avec placeOrder)
   const u = page?.props?.auth?.user
   if (u) {
@@ -386,7 +396,7 @@ async function submit () {
             :disabled="loading"
             @click="submit"
             class="py-2 px-4 rounded-2xl bg-blue-600 text-white disabled:opacity-50"
-          >
+            >
             {{ loading ? 'Traitement...' : 'Passer la commande' }}
           </button>
         </div>
@@ -404,3 +414,4 @@ async function submit () {
     </div>
   </div>
 </template>
+

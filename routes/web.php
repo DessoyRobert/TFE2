@@ -26,7 +26,8 @@ use App\Http\Controllers\Admin\CategoryController as AdminCategoryController;
 use App\Http\Controllers\Admin\ComponentTypeController as AdminComponentTypeController;
 use App\Http\Controllers\Admin\CompatibilityRuleController as AdminCompatibilityRuleController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
-
+use App\Http\Controllers\OrderController as PublicOrderController;
+use App\Http\Controllers\User\UserOrderController;
 /*
 |--------------------------------------------------------------------------
 | Routes PUBLIQUES (pages)
@@ -54,10 +55,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Création de commande -> API controller
     Route::post('/checkout', [ApiCheckoutController::class, 'store'])->name('checkout.store');
 
-    // Page détail commande (pour correspondre à route('checkout.show', ['order' => ...]))
-    Route::get('/checkout/{order}', function (\App\Models\Order $order) {
-        return Inertia::render('Checkout/Index', ['orderId' => $order->id]);
-    })->name('checkout.show');
+    // Page détail commande (hydrate Checkout/Index avec serverResult)
+    Route::get('/checkout/{order}', [PublicOrderController::class, 'show'])
+        ->name('checkout.show');
+    Route::get('/account/orders', [UserOrderController::class, 'index'])->name('account.orders.index');
 });
 
 // Gestion du profil
