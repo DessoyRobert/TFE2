@@ -7,6 +7,8 @@ use App\Models\Build;
 use App\Models\Component;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 
 class BuildController extends Controller
 {
@@ -78,4 +80,45 @@ class BuildController extends Controller
 
         return redirect()->route('admin.builds.index');
     }
+    // restreindre l’accès admin :
+    /*
+    public function __construct()
+    {
+        $this->middleware(function ($request, $next) {
+            abort_unless($request->user()?->is_admin ?? false, 403);
+            return $next($request);
+        });
+    }
+    */
+
+    /**
+     * Basculer la visibilité (public/privé) d’un build.
+     */
+    public function toggleVisibility(Request $request, Build $build): JsonResponse|RedirectResponse
+    {
+        // Valide si présent, mais n’exige pas le champ
+        $validated = $request->validate([
+            'is_public' => ['sometimes', 'boolean'],
+        ]);
+
+        if (array_key_exists('is_public', $validated)) {
+            $build->is_public = (bool) $validated['is_public'];
+        } else {
+            // Mode "toggle" pur si aucune valeur envoyée
+            $build->is_public = ! (bool) $build->is_public;
+        }
+
+        $build->save();
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'ok'        => true,
+                'build_id'  => $build->id,
+                'is_public' => (bool) $build->is_public,
+            ]);
+        }
+
+        return back()->with('success', 'Visibilité mise à jour.');
+    }
+
 }

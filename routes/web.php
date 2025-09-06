@@ -113,6 +113,9 @@ Route::middleware(['auth', 'is_admin'])
         // Upload images
         Route::get('/images/upload', [ImageController::class, 'uploadPage'])->name('images.upload');
         Route::post('/images', [ImageController::class, 'store'])->name('images.store');
+
+        Route::patch('builds/{build}/visibility', [\App\Http\Controllers\Admin\BuildController::class, 'toggleVisibility'])
+            ->name('builds.toggle-visibility');
     });
 
 // Auth scaffolding (Breeze/Jetstream/etc.)

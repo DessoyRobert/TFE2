@@ -58,3 +58,5 @@ Route::get('categories/{category}', [CategoryController::class, 'show']);
 // Validation/compat temporaire (publique)
 Route::post('builds/validate-temp', BuildValidationTempController::class);
 
+
+

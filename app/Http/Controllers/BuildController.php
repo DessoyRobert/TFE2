@@ -5,16 +5,34 @@ namespace App\Http\Controllers;
 use App\Models\Build;
 use App\Models\Component;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Illuminate\Support\Str;
 
 class BuildController extends Controller
 {
+    /**
+     * Index public des builds.
+     * Affiche uniquement:
+     *  - les builds publics
+     *  - + les builds de l'utilisateur connecté (s'il est authentifié)
+     *  - un admin verrait tout, mais ici c'est l'index public, donc on limite aux règles ci-dessus.
+     */
     public function index()
     {
+        $user = Auth::user();
+
         $builds = Build::query()
             ->whereHas('components')
+            ->when(true, function ($q) use ($user) {
+                $q->where(function ($sub) use ($user) {
+                    $sub->where('is_public', true);
+                    if ($user) {
+                        $sub->orWhere('user_id', $user->id);
+                    }
+                });
+            })
             ->with([
                 'components.brand:id,name',
                 'components.images:id,imageable_id,imageable_type,url',
@@ -40,7 +58,7 @@ class BuildController extends Controller
                             'price' => (float) $c->price,
                             'brand' => $c->brand?->only(['id','name']),
                             'component_type' => [
-                                'slug' => Str::slug($c->type->name ?? ''), // calcule à la volée
+                                'slug' => Str::slug($c->type->name ?? ''),
                                 'name' => $c->type->name ?? null,
                             ],
                             'images' => $c->images?->map(fn($img) => [
@@ -69,7 +87,7 @@ class BuildController extends Controller
                         'img_url'     => $build->img_url ?? '',
                     ],
                     'items' => $build->components->map(function ($c) {
-                        $typeKey = Str::slug($c->type->name ?? ''); // calcule à la volée
+                        $typeKey = Str::slug($c->type->name ?? '');
                         return [
                             'id'       => $c->id,
                             'name'     => $c->name,
@@ -133,7 +151,7 @@ class BuildController extends Controller
                 'description'     => $data['description'] ?? '',
                 'img_url'         => $data['img_url'] ?? null,
                 'price'           => $data['price'] ?? null,
-                'user_id'         => auth()->id(),
+                'user_id'         => Auth::id(),
                 'build_code'      => strtoupper(Str::random(8)),
                 'total_price'     => 0,
                 'component_count' => 0,
@@ -164,8 +182,21 @@ class BuildController extends Controller
         });
     }
 
+    /**
+     * Affichage d'un build public.
+     * Protège l'accès: 404 si privé et que l'utilisateur n'est ni propriétaire ni admin.
+     */
     public function show(Build $build)
     {
+        $user = Auth::user();
+
+        $canView = $build->is_public
+            || ($user && ($user->id === $build->user_id || ($user->is_admin ?? false)));
+
+        if (!$canView) {
+            abort(404);
+        }
+
         $build->load(['components.brand', 'components.images', 'components.type']);
 
         return Inertia::render('Builds/Show', [

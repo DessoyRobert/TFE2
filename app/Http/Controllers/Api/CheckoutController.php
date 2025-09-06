@@ -200,7 +200,7 @@ class CheckoutController extends Controller
                         'purchasable_type' => Component::class,
                         'purchasable_id'   => $component->id,
                         'quantity'         => $qty,
-                        'unit_price'       => round($unit, 2),
+                       'unit_price'       => round($unit, 2),
                         'line_total'       => round($unit * $qty, 2),
                         'snapshot'         => [
                             'component_id' => $component->id,
