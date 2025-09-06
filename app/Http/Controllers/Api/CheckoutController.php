@@ -64,13 +64,14 @@ class CheckoutController extends Controller
             $q->select('components.id', 'components.name', 'components.price')
               ->withPivot(['quantity', 'price_at_addition']);
         }])->findOrFail($buildId);
-
-        // --- Contrôle propriétaire (simple si pas de Policy)
-        if ((int) $build->user_id !== $userId) {
+        if(!$build->is_public)
+        {
+            if ((int) $build->user_id !== $userId) {
             return response()->json([
                 'message' => 'Accès refusé.',
                 'errors'  => ['build_id' => ['Vous ne pouvez pas commander ce build.']],
             ], 403);
+            }
         }
 
         // --- Normalisation client

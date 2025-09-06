@@ -1,4 +1,4 @@
-<script setup>
+<script setup> 
 import { Link, usePage, router } from '@inertiajs/vue3'
 import { computed, ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useCartStore } from '@/stores/cartStore'
@@ -21,8 +21,31 @@ const page = usePage()
 const user = computed(() => page.props?.auth?.user)
 const isAdmin = computed(() => !!user.value?.is_admin)
 
+/* Nettoyage côté client après logout */
+function cleanupAfterLogout() {
+  // Pinia (option stores: $reset ; setup stores: reset())
+  try { cart.$reset?.(); cart.reset?.() } catch {}
+  try { build.$reset?.(); build.reset?.() } catch {}
+
+  // Web Storage (ajuste/complète selon tes clés réelles)
+  const KEYS = [
+    'cart', 'build', 'buildDraft',
+    'checkoutForm', 'idempotencyKey',
+    'pinia', 'pinia-cart', 'pinia-build'
+  ]
+  try { KEYS.forEach(k => localStorage.removeItem(k)) } catch {}
+  try { KEYS.forEach(k => sessionStorage.removeItem(k)) } catch {}
+}
+
 /* Actions */
-function logout() { router.post(route('logout')) }
+function logout() {
+  router.post(route('logout'), {}, {
+    onSuccess: () => {
+      cleanupAfterLogout()
+    }
+    // onError / onFinish non nécessaires ici
+  })
+}
 
 /* UI state */
 const open = ref(false)
