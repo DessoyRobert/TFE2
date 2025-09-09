@@ -19,7 +19,7 @@ return [
     ],
 
     'ses' => [
-        'key' => env('AWS_ACCESS_KEY_ID'),
+        'key'    => env('AWS_ACCESS_KEY_ID'),
         'secret' => env('AWS_SECRET_ACCESS_KEY'),
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
@@ -31,8 +31,26 @@ return [
     'slack' => [
         'notifications' => [
             'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),
-            'channel' => env('SLACK_BOT_USER_DEFAULT_CHANNEL'),
+            'channel'              => env('SLACK_BOT_USER_DEFAULT_CHANNEL'),
         ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Checkout & Bank settings (utilisés par le CheckoutController)
+    |--------------------------------------------------------------------------
+    */
+    'bank' => [
+        'holder'       => env('BANK_HOLDER', 'César Loïc (Jarvistech)'),
+        'iban'         => env('BANK_IBAN', 'BE07 5084 4237'),
+        'bic'          => env('BANK_BIC', 'XXXXXX'),
+        'payment_days' => env('BANK_PAYMENT_DAYS', 7),
+    ],
+
+    'checkout' => [
+        'free_shipping_threshold' => env('CHECKOUT_FREE_SHIPPING_THRESHOLD', 1500.00),
+        'flat_shipping'           => env('CHECKOUT_FLAT_SHIPPING', 14.90),
+        'vat_be'                  => env('CHECKOUT_VAT_BE', 0.21),
     ],
 
 ];

@@ -47,6 +47,10 @@ public function store(LoginRequest $request): RedirectResponse
 
         $request->session()->regenerateToken();
 
+        // $request->user()?->currentAccessToken()?->delete();
+        // ou tous les tokens:
+        // $request->user()?->tokens()->delete();
+
         return redirect('/');
     }
 }

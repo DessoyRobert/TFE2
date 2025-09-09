@@ -1,47 +1,63 @@
 <script setup>
 import { ref, watch } from 'vue'
 import { router, Link } from '@inertiajs/vue3'
-//import { useCartStore } from '@/stores/cartStore'
 import { useBuildStore } from '@/stores/buildStore'
+
 const props = defineProps({
-  components: Object,
-  filters: Object
+  components: { type: Object, required: true },
+  filters: { type: Object, default: () => ({}) },
 })
 
 const build = useBuildStore()
 
+/* ------------------ Filtres locaux (init depuis props) ------------------ */
 const filters = ref({
-  search: props.filters.search ?? '',
-  sortBy: props.filters.sortBy ?? '',
-  sortDesc: props.filters.sortDesc ?? false,
+  search: props.filters?.search ?? '',
+  sortBy: props.filters?.sortBy ?? '',
+  sortDesc: props.filters?.sortDesc ?? false,
 })
 
-let previousFilters = JSON.stringify(filters.value)
+/* ------------------ Navigation avec Inertia ------------------ */
+function applyFilters({ resetPage = true } = {}) {
+  router.get(route?.('components.index') ?? '/components', {
+    ...filters.value,
+    ...(resetPage ? { page: 1 } : {}),
+  }, {
+    preserveState: true,
+    replace: true,
+    preserveScroll: true,
+  })
+}
 
-watch(filters, () => {
-  const newFilters = JSON.stringify(filters.value)
-  if (newFilters !== previousFilters) {
-    router.get('/components', {
-      ...filters.value,
-      page: 1
-    }, {
-      preserveState: true,
-      replace: true
-    })
-    previousFilters = newFilters
-  }
-}, { deep: true })
+/* Debounce recherche */
+let debounceId = null
+watch(() => filters.value.search, () => {
+  clearTimeout(debounceId)
+  debounceId = setTimeout(() => applyFilters({ resetPage: true }), 300)
+})
 
-// ---------- UI helpers ----------
+/* Tri / sens */
+watch(() => [filters.value.sortBy, filters.value.sortDesc], () => {
+  applyFilters({ resetPage: true })
+})
+
+/* ------------------ UI helpers ------------------ */
 const eur = new Intl.NumberFormat('fr-BE', { style: 'currency', currency: 'EUR' })
 
-// petit état local pour afficher "Ajouté ✓" pendant 1.5s
-const added = ref({}) // ex: { [id]: true }
+const added = ref({})
 function addToBuild(component) {
   if (!component?.id) return
   build.addFromComponent(component)
-  added.value[component.id] = true
-  setTimeout(() => { delete added.value[component.id] }, 1500)
+  added.value = { ...added.value, [component.id]: true }
+  setTimeout(() => {
+    const copy = { ...added.value }
+    delete copy[component.id]
+    added.value = copy
+  }, 1500)
+}
+
+function toggleSortDir() {
+  filters.value.sortDesc = !filters.value.sortDesc
 }
 </script>
 
@@ -50,14 +66,19 @@ function addToBuild(component) {
     <h1 class="text-3xl font-semibold mb-6">Liste des composants</h1>
 
     <div class="flex flex-wrap items-center gap-4 mb-6">
+      <label class="sr-only" for="search">Rechercher</label>
       <input
+        id="search"
         v-model="filters.search"
         type="text"
-        placeholder="Rechercher..."
+        placeholder="Rechercher…"
         class="w-64 px-4 py-2 border border-slate-300 rounded-lg focus:ring focus:ring-cyan-300 focus:outline-none"
+        autocomplete="off"
       />
 
+      <label class="sr-only" for="sortBy">Trier par</label>
       <select
+        id="sortBy"
         v-model="filters.sortBy"
         class="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring focus:ring-cyan-300"
       >
@@ -68,8 +89,10 @@ function addToBuild(component) {
       </select>
 
       <button
-        @click="filters.sortDesc = !filters.sortDesc"
+        type="button"
+        @click="toggleSortDir"
         class="px-3 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg text-sm"
+        :aria-pressed="filters.sortDesc ? 'true' : 'false'"
       >
         {{ filters.sortDesc ? '↓ Descendant' : '↑ Ascendant' }}
       </button>
@@ -86,7 +109,14 @@ function addToBuild(component) {
             <th class="px-4 py-3 text-center">Actions</th>
           </tr>
         </thead>
+
         <tbody class="text-slate-800">
+          <tr v-if="!components?.data?.length">
+            <td colspan="5" class="px-4 py-6 text-center text-slate-500">
+              Aucun résultat. Essaie d’élargir ta recherche ou de modifier le tri.
+            </td>
+          </tr>
+
           <tr
             v-for="component in components.data"
             :key="component.id"
@@ -95,16 +125,19 @@ function addToBuild(component) {
             <td class="px-4 py-3">
               {{ component.name }}
             </td>
+
             <td class="px-4 py-3">
-              <!-- Selon ta Resource, brand est souvent déjà une string -->
-              {{ component.brand }}
+              {{ component.brand?.name ?? component.brand ?? '—' }}
             </td>
+
             <td class="px-4 py-3 capitalize">
-              {{ component.type }}
+              {{ component.type?.name ?? component.type ?? '—' }}
             </td>
+
             <td class="px-4 py-3 text-right">
               {{ eur.format(Number(component.price ?? 0)) }}
             </td>
+
             <td class="px-4 py-3">
               <div class="flex items-center gap-2 justify-center">
                 <Link
@@ -115,10 +148,14 @@ function addToBuild(component) {
                 </Link>
 
                 <button
+                  type="button"
                   @click="addToBuild(component)"
-                  class="inline-flex items-center text-xs px-3 py-1 rounded-full bg-blue-600 text-white font-semibold shadow hover:bg-blue-700 transition"
+                  :disabled="!!added[component.id]"
+                  class="inline-flex items-center text-xs px-3 py-1 rounded-full font-semibold shadow transition
+                         text-white disabled:opacity-70 disabled:cursor-not-allowed
+                         bg-blue-600 hover:bg-blue-700"
                 >
-                  <span v-if="!added[component.id]">Ajouter au panier</span>
+                  <span v-if="!added[component.id]">Ajouter au Build</span>
                   <span v-else class="inline-flex items-center gap-1">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
                       <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-7.25 7.25a1 1 0 01-1.414 0l-3.25-3.25a1 1 0 111.414-1.414l2.543 2.543 6.543-6.543a1 1 0 011.414 0z" clip-rule="evenodd" />
@@ -133,12 +170,13 @@ function addToBuild(component) {
       </table>
     </div>
 
+    <!-- Pagination -->
     <div class="mt-6 flex justify-center">
       <nav class="flex flex-wrap gap-1">
-        <template v-for="link in components.links" :key="link.label">
+        <template v-for="(link, i) in components.links" :key="link.url ?? i">
           <component
-            :is="link.url ? 'Link' : 'span'"
-            :href="link.url"
+            :is="link.url ? Link : 'span'"
+            :href="link.url || undefined"
             v-html="link.label"
             class="px-3 py-2 text-sm rounded-md"
             :class="{
@@ -146,6 +184,7 @@ function addToBuild(component) {
               'text-slate-600 hover:bg-slate-100 cursor-pointer': !link.active && link.url,
               'text-slate-400 cursor-not-allowed': !link.url
             }"
+            v-bind="link.url ? { preserveScroll: true } : {}"
           />
         </template>
       </nav>

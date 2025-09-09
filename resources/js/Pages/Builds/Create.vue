@@ -45,6 +45,24 @@ const selectedCategory = ref(categories[0])
 const items = ref([])
 const loading = ref(false)
 
+// --------- Recherche locale (par catégorie) ---------
+const search = ref('')
+watch(selectedCategory, () => { search.value = '' }) // reset quand on change de type
+
+function textHaystack(it) {
+  const name  = (it?.name ?? '').toString()
+  const brand = typeof it?.brand === 'string' ? it.brand : (it?.brand?.name ?? '')
+  const type  = it?.type?.name ?? it?.type ?? ''
+  return `${name} ${brand} ${type}`.toLowerCase()
+}
+
+const filteredItems = computed(() => {
+  const q = search.value.trim().toLowerCase()
+  if (!q) return visibleItems.value
+  return visibleItems.value.filter(it => textHaystack(it).includes(q))
+})
+
+// ---------- Chargement ----------
 function pickImageUrl(item) {
   const url =
     item?.images?.[0]?.url ??
@@ -181,7 +199,6 @@ async function saveAndCheckout() {
     const component_ids = getComponentIds()
     if (!component_ids.length) throw new Error('Aucun composant sélectionné.')
 
-    // 1) Créer le build (idempotent)
     const idemBuild = createIdempotencyKey()
     const { data } = await axios.post(
       '/api/builds',
@@ -193,23 +210,12 @@ async function saveAndCheckout() {
       throw new Error(data?.message || 'Impossible de sauvegarder le build.')
     }
 
-    // 2) Rediriger vers le Checkout avec le build (PAS de création d’ordre ici)
-    //    - Le contrôleur renvoie déjà `redirect_url: /checkout?build={id}`.
-    //    - Sinon, on reconstruit l’URL de secours.
     if (data.redirect_url) {
       window.location.replace(data.redirect_url)            // ex: /checkout?build=123
     } else {
       router.visit(`/checkout?build=${data.build_id}`)      // fallback
     }
-
-    // NOTE :
-    // La création de l’ordre (POST /checkout) se fera depuis la page Checkout
-    // via `placeOrder({ buildId })`, éventuellement après que l’utilisateur
-    // complète/valide le formulaire. On évite ainsi de vider le panier par erreur
-    // et on garde un flux clair.
-
   } catch (e) {
-    // Gestion des erreurs (401/422/500) : on reste sur place et on affiche la modale
     console.error('SAVE&CHECKOUT ERROR', e?.response?.data || e)
     const status = e?.response?.status
     if (status === 401) {
@@ -344,7 +350,37 @@ loadItems(selectedCategory.value)
 
         <!-- Zone centrale -->
         <main class="flex-1 min-w-0">
-          <h2 class="text-2xl font-bold mb-4">{{ selectedCategory.label }}</h2>
+          <div class="flex items-end justify-between gap-3 mb-4 flex-wrap">
+            <h2 class="text-2xl font-bold">{{ selectedCategory.label }}</h2>
+
+            <!-- 🔎 Recherche locale -->
+            <div class="relative w-full sm:w-80">
+              <label for="searchBox" class="sr-only">Rechercher</label>
+              <input
+                id="searchBox"
+                v-model="search"
+                type="text"
+                :placeholder="`Rechercher un(e) ${selectedCategory.label} (nom, marque…)`"
+                class="w-full pl-10 pr-10 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring focus:ring-cyan-300 bg-white"
+                autocomplete="off"
+              />
+              <!-- Icone -->
+              <svg class="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" viewBox="0 0 24 24" fill="none">
+                <path stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                  d="m21 21-4.3-4.3M10 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16Z" />
+              </svg>
+              <!-- Clear -->
+              <button
+                v-if="search"
+                @click="search = ''"
+                class="absolute right-2 top-1/2 -translate-y-1/2 px-2 text-slate-500 hover:text-slate-700"
+                aria-label="Effacer la recherche"
+              >✕</button>
+              <p class="mt-1 text-xs text-slate-500">
+                {{ filteredItems.length }} résultat{{ filteredItems.length > 1 ? 's' : '' }}
+              </p>
+            </div>
+          </div>
 
           <!-- Messages validation -->
           <div id="validation-panel" class="space-y-2 mb-4">
@@ -374,16 +410,23 @@ loadItems(selectedCategory.value)
 
           <div v-if="loading">Chargement...</div>
 
-          <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <ComponentCard
-              v-for="item in visibleItems"
-              :key="item.id"
-              :item="item"
-              :disableSelect="!buildStore.isCompatible(selectedCategory.key, item.id ?? item.component_id)"
-              :show-details="true"
-              :show-add-to-cart="false"
-              @select="selectComponent"
-            />
+          <!-- Grille -->
+          <div v-else>
+            <div v-if="!filteredItems.length" class="p-6 text-center text-slate-500 bg-white rounded-xl border">
+              Aucun résultat pour « {{ search }} ». Essaie un autre terme ou change de catégorie.
+            </div>
+
+            <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <ComponentCard
+                v-for="item in filteredItems"
+                :key="item.id"
+                :item="item"
+                :disableSelect="!buildStore.isCompatible(selectedCategory.key, item.id ?? item.component_id)"
+                :show-details="true"
+                :show-add-to-cart="false"
+                @select="selectComponent"
+              />
+            </div>
           </div>
         </main>
 

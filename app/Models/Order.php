@@ -24,7 +24,7 @@ class Order extends Model
         'grand_total' => 'decimal:2',
         'payment_deadline' => 'datetime',
         'payment_received_at' => 'datetime',
-        'meta' => 'array', // 👈 important pour stocker idempotency_key & co
+        'meta' => 'array', //important pour stocker idempotency_key & co
     ];
 
     public function items(): HasMany { return $this->hasMany(OrderItem::class); }

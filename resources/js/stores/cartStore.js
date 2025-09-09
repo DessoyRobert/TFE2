@@ -53,7 +53,7 @@ export const useCartStore = defineStore('cart', {
 
     /**
      * Vide complètement le panier.
-     * ⚠️ À n’appeler que lorsque l’utilisateur le souhaite,
+     * À n’appeler que lorsque l’utilisateur le souhaite,
      * pas après un SAVE automatique (sinon perte des données).
      */
     clear() {

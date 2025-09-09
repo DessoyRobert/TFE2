@@ -16,8 +16,20 @@ use App\Models\Component;
 use App\Models\Order;
 use App\Models\OrderItem;
 
+/**
+ * CheckoutController
+ *
+ * Crée une commande à partir d'un build et de ses composants.
+ * Règle métier : le prix de la commande est figé à l'instant T
+ * (snapshot des prix composant au moment de la création).
+ */
 class CheckoutController extends Controller
 {
+    /**
+     * POST /api/checkout
+     *
+     * Header optionnel: Idempotency-Key
+     */
     public function store(Request $request): JsonResponse
     {
         // --- Auth obligatoire
@@ -64,14 +76,13 @@ class CheckoutController extends Controller
             $q->select('components.id', 'components.name', 'components.price')
               ->withPivot(['quantity', 'price_at_addition']);
         }])->findOrFail($buildId);
-        if(!$build->is_public)
-        {
-            if ((int) $build->user_id !== $userId) {
+
+        // --- Autorisation: build public OU propriétaire
+        if (!$build->is_public && (int) $build->user_id !== $userId) {
             return response()->json([
                 'message' => 'Accès refusé.',
                 'errors'  => ['build_id' => ['Vous ne pouvez pas commander ce build.']],
             ], 403);
-            }
         }
 
         // --- Normalisation client
@@ -94,7 +105,7 @@ class CheckoutController extends Controller
             }
         }
 
-        // --- Sélection des composants : ceux passés ou tous ceux du build
+        // --- Sélection des composants: ceux passés ou ceux du build
         $incomingIds = collect($data['component_ids'] ?? [])
             ->map(fn($v) => is_numeric($v) ? (int) $v : null)
             ->filter(fn($v) => $v !== null)
@@ -111,17 +122,57 @@ class CheckoutController extends Controller
             ], 422);
         }
 
-        // --- Idempotence + verrou
+        // --- Idempotence + early return
         $idempotencyKey = (string) ($request->header('Idempotency-Key') ?: Str::uuid());
+
+        if ($existing = Order::where('user_id', $userId)
+                ->where('idempotency_key', $idempotencyKey)
+                ->with('items')
+                ->first()) {
+
+            $itemsPayload = $existing->items->map(function ($it) {
+                $name = $it->snapshot['name'] ?? null;
+                return [
+                    'type'       => class_basename($it->purchasable_type),
+                    'id'         => (int) $it->purchasable_id,
+                    'name'       => $name,
+                    'quantity'   => (int) $it->quantity,
+                    'unit_price' => (string) $it->unit_price,
+                    'line_total' => (string) $it->line_total,
+                ];
+            })->values();
+
+            return response()->json([
+                'message'        => 'Commande déjà créée (idempotence).',
+                'order_id'       => $existing->id,
+                'status'         => $existing->status,
+                'payment_status' => $existing->payment_status,
+                'currency'       => $existing->currency,
+                'amounts'        => [
+                    'subtotal' => $existing->subtotal,
+                    'shipping' => $existing->shipping_cost,
+                    'tax'      => $existing->tax_total,
+                    'discount' => $existing->discount_total,
+                    'grand'    => $existing->grand_total,
+                ],
+                'items'        => $itemsPayload,
+                'bank'         => null,
+                'redirect_url' => route('checkout.show', ['order' => $existing->id]),
+            ], 200);
+        }
+
+        // --- Verrou utilisateur/build pour éviter races
         $lockKey = "checkout:lock:user:{$userId}:build:{$buildId}";
 
-        return Cache::lock($lockKey, 10)->block(5, function () use ($build, $selectedIds, $data, $userId, $customerFirst, $customerLast, $customerEmail, $idempotencyKey) {
-
-            return DB::transaction(function () use ($build, $selectedIds, $data, $userId, $customerFirst, $customerLast, $customerEmail, $idempotencyKey) {
-
+        return Cache::lock($lockKey, 10)->block(5, function () use (
+            $build, $selectedIds, $data, $userId, $customerFirst, $customerLast, $customerEmail, $idempotencyKey
+        ) {
+            return DB::transaction(function () use (
+                $build, $selectedIds, $data, $userId, $customerFirst, $customerLast, $customerEmail, $idempotencyKey
+            ) {
                 $items = $build->components->whereIn('id', $selectedIds);
 
-                // --- Totaux
+                // --- Totaux figés à l'instant T (snapshot)
                 $subtotal = 0.00;
                 foreach ($items as $component) {
                     $qty  = (int) ($component->pivot->quantity ?? 1);
@@ -130,15 +181,19 @@ class CheckoutController extends Controller
                 }
 
                 $shippingCountry = strtoupper((string) ($data['shipping_country'] ?? 'BE'));
-                $vatRate    = $shippingCountry === 'BE' ? 0.21 : 0.00; // simplifié
+                $vatRate    = $shippingCountry === 'BE'
+                    ? (float) config('services.checkout.vat_be', 0.21)
+                    : 0.00;
                 $tax        = round($subtotal * $vatRate, 2);
-                $freeThresh = (float) env('CHECKOUT_FREE_SHIPPING_THRESHOLD', 1500.00);
-                $flatShip   = (float) env('CHECKOUT_FLAT_SHIPPING', 14.90);
+
+                $freeThresh = (float) config('services.checkout.free_shipping_threshold', 1500.00);
+                $flatShip   = (float) config('services.checkout.flat_shipping', 14.90);
                 $shipping   = $subtotal >= $freeThresh ? 0.00 : $flatShip;
+
                 $discount   = 0.00;
                 $grand      = round($subtotal + $tax + $shipping - $discount, 2);
 
-                // --- Création commande
+                // --- Création commande (prix figés)
                 $order = Order::create([
                     'user_id' => $userId,
 
@@ -155,7 +210,7 @@ class CheckoutController extends Controller
                     'shipping_postal_code'   => $data['shipping_postal_code'],
                     'shipping_country'       => $shippingCountry,
 
-                    // Totaux
+                    // Totaux figés
                     'subtotal'               => round($subtotal, 2),
                     'shipping_cost'          => round($shipping, 2),
                     'discount_total'         => round($discount, 2),
@@ -168,11 +223,12 @@ class CheckoutController extends Controller
                     'payment_method'         => $data['payment_method'] ?? 'bank_transfer',
                     'currency'               => strtoupper((string) ($data['currency'] ?? 'EUR')),
 
-                    // Meta
+                    // Idempotence + meta
+                    'idempotency_key'        => $idempotencyKey,
                     'meta'                   => ['idempotency_key' => $idempotencyKey],
                 ]);
 
-                // --- Ligne "Build" (regroupement : 0€ pour éviter double comptage si l'UI somme les lignes)
+                // --- Ligne "Build" (regroupement)
                 OrderItem::updateOrCreate(
                     [
                         'order_id'         => $order->id,
@@ -191,7 +247,7 @@ class CheckoutController extends Controller
                     ]
                 );
 
-                // --- Lignes "Composants" (détail + prix)
+                // --- Lignes "Composants" (détail + prix snapshot)
                 foreach ($items as $component) {
                     $qty  = (int) ($component->pivot->quantity ?? 1);
                     $unit = (float) ($component->pivot->price_at_addition ?? $component->price ?? 0);
@@ -201,7 +257,7 @@ class CheckoutController extends Controller
                         'purchasable_type' => Component::class,
                         'purchasable_id'   => $component->id,
                         'quantity'         => $qty,
-                       'unit_price'       => round($unit, 2),
+                        'unit_price'       => round($unit, 2),
                         'line_total'       => round($unit * $qty, 2),
                         'snapshot'         => [
                             'component_id' => $component->id,
@@ -213,16 +269,39 @@ class CheckoutController extends Controller
 
                 // --- Coordonnées virement (si bank_transfer)
                 $bank = null;
-                $pm   = $order->payment_method;
-                if ($pm === 'bank_transfer') {
+                if ($order->payment_method === 'bank_transfer') {
+                    $days = (int) config('services.bank.payment_days', 7);
+                    $bankRef = 'ORDER-' . $order->id;
+                    $deadline = now()->addDays($days);
+
+                    // on persiste ces champs si le modèle/DB les supporte
+                    $order->forceFill([
+                        'bank_reference'    => $bankRef,
+                        'payment_deadline'  => $deadline,
+                    ])->save();
+
                     $bank = [
-                        'holder'           => env('BANK_HOLDER', 'PCBuilder SRL'),
-                        'iban'             => env('BANK_IBAN', 'BE00 0000 0000 0000'),
-                        'bic'              => env('BANK_BIC', 'XXXXXX'),
-                        'reference'        => 'ORDER-' . $order->id,
-                        'payment_deadline' => now()->addDays((int) env('BANK_PAYMENT_DAYS', 7))->format('Y-m-d'),
+                        'holder'           => config('services.bank.holder', 'PCBuilder SRL'),
+                        'iban'             => config('services.bank.iban', 'BE00 0000 0000 0000'),
+                        'bic'              => config('services.bank.bic', 'XXXXXX'),
+                        'reference'        => $bankRef,
+                        'payment_deadline' => $deadline->format('Y-m-d'),
                     ];
                 }
+
+                // --- Payload items
+                $order->load('items');
+                $itemsPayload = $order->items->map(function ($it) {
+                    $name = $it->snapshot['name'] ?? null;
+                    return [
+                        'type'       => class_basename($it->purchasable_type), // "Build" ou "Component"
+                        'id'         => (int) $it->purchasable_id,
+                        'name'       => $name,
+                        'quantity'   => (int) $it->quantity,
+                        'unit_price' => (string) $it->unit_price,
+                        'line_total' => (string) $it->line_total,
+                    ];
+                })->values();
 
                 return response()->json([
                     'message'        => 'Commande créée.',
@@ -230,13 +309,14 @@ class CheckoutController extends Controller
                     'status'         => $order->status,
                     'payment_status' => $order->payment_status,
                     'currency'       => $order->currency,
-                    'amounts' => [
+                    'amounts'        => [
                         'subtotal' => $order->subtotal,
                         'shipping' => $order->shipping_cost,
                         'tax'      => $order->tax_total,
                         'discount' => $order->discount_total,
                         'grand'    => $order->grand_total,
                     ],
+                    'items'         => $itemsPayload,
                     'bank'          => $bank,
                     'redirect_url'  => route('checkout.show', ['order' => $order->id]),
                 ], 201);

@@ -75,6 +75,7 @@ function mapApiToResult(data) {
     amounts: data?.amounts ?? {
       subtotal: undefined, shipping: undefined, tax: undefined, discount: undefined, grand: undefined,
     },
+    items: Array.isArray(data?.items) ? data.items : [],
     redirect_url: data?.redirect_url ?? null,
   }
 }
@@ -83,6 +84,7 @@ function mapApiToResult(data) {
 async function placeOrder({ buildId, componentIds = [] }) {
   loading.value = true
   errors.value = {}
+
   try {
     // Prefill depuis l'utilisateur connecté
     const u = page?.props?.auth?.user
@@ -105,12 +107,13 @@ async function placeOrder({ buildId, componentIds = [] }) {
       payment_method: form.value.payment_method || 'bank_transfer',
     }
 
-    const res = await fetch('/checkout', {
+    const res = await fetch('/api/checkout', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        ...(csrf ? { 'X-CSRF-TOKEN': csrf } : {}),
         'Accept': 'application/json',
+        ...(csrf ? { 'X-CSRF-TOKEN': csrf } : {}),
+        'X-Requested-With': 'XMLHttpRequest',
         'Idempotency-Key': createIdempotencyKey(),
       },
       body: JSON.stringify(payload),
@@ -124,6 +127,11 @@ async function placeOrder({ buildId, componentIds = [] }) {
       return
     }
 
+    if (res.status === 422) {
+      errors.value = data?.errors || { general: [data?.message || 'Données invalides.'] }
+      return
+    }
+
     if (!res.ok) {
       if (data?.errors) errors.value = data.errors
       else if (data?.message) errors.value = { general: [data.message] }
@@ -131,8 +139,14 @@ async function placeOrder({ buildId, componentIds = [] }) {
       return
     }
 
-    // Succès
+    // Succès (201 création OU 200 idempotence)
     result.value = mapApiToResult(data)
+
+    // On vide le panier maintenant pour éviter le double-achat après redirection
+    if (cart?.clear) {
+      try { cart.clear() } catch {}
+
+    }
 
     // Redirection si fournie
     if (result.value.redirect_url) {
@@ -143,6 +157,10 @@ async function placeOrder({ buildId, componentIds = [] }) {
       router.visit(`/checkout/${result.value.order_id}`)
       return
     }
+
+  } catch (e) {
+    console.error(e)
+    errors.value = { general: ['Impossible de contacter le serveur. Vérifie ta connexion et réessaie.'] }
   } finally {
     loading.value = false
   }
@@ -189,6 +207,7 @@ async function submit () {
   }
   await placeOrder({ buildId: build.id, componentIds: componentIdsInCart.value })
 }
+
 </script>
 
 <template>
@@ -199,13 +218,44 @@ async function submit () {
     <div v-if="result" class="grid md:grid-cols-3 gap-6">
       <div class="md:col-span-2 space-y-4 bg-white p-5 rounded-2xl shadow">
         <h2 class="text-xl font-bold">Commande créée</h2>
+        <!-- Détail des articles -->
+        <div v-if="result.items && result.items.length" class="mt-4">
+          <h3 class="font-semibold mb-2">Détail des articles</h3>
+          <div class="overflow-x-auto">
+            <table class="min-w-full text-sm">
+              <thead>
+                <tr class="text-left text-gray-600 border-b">
+                  <th class="py-2 pr-3">Article</th>
+                  <th class="py-2 pr-3">Type</th>
+                  <th class="py-2 pr-3">Qté</th>
+                  <th class="py-2 pr-3">Prix unitaire</th>
+                  <th class="py-2">Total ligne</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(it, i) in result.items" :key="i" class="border-b last:border-0">
+                  <td class="py-2 pr-3">
+                    <div class="font-medium truncate">{{ it.name || (`${it.type} #${it.id}`) }}</div>
+                  </td>
+                  <td class="py-2 pr-3">{{ it.type }}</td>
+                  <td class="py-2 pr-3">× {{ it.quantity }}</td>
+                  <td class="py-2 pr-3">{{ it.unit_price }} {{ result.currency ?? 'EUR' }}</td>
+                  <td class="py-2 font-semibold">{{ it.line_total }} {{ result.currency ?? 'EUR' }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="text-xs text-gray-500 mt-2">
+            Astuce : la ligne “Build” est à 0 € pour éviter de compter deux fois (les prix sont portés par chaque composant).
+          </p>
+        </div>
         <p class="text-gray-700">
           Merci ! Votre commande
           <strong v-if="result.order_id">#{{ result.order_id }}</strong>
           a été créée.
         </p>
 
-        <!-- Bloc virement (optionnel) -->
+        <!-- Bloc virement -->
         <div v-if="result.bank" class="mt-4 space-y-3">
           <h3 class="font-semibold text-darknavy">Instructions de virement</h3>
           <div class="grid sm:grid-cols-2 gap-3 text-sm">
@@ -414,4 +464,3 @@ async function submit () {
     </div>
   </div>
 </template>
-

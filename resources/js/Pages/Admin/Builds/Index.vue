@@ -63,6 +63,7 @@ function formatPrice(value) {
       <table class="w-full text-sm bg-white rounded-xl shadow border">
         <thead class="bg-lightgray text-darknavy font-semibold">
           <tr>
+            <th class="px-4 py-2 text-left">ID</th>
             <th class="px-4 py-2 text-left">Nom</th>
             <th class="px-4 py-2 text-left">Description</th>
             <th class="px-4 py-2 text-left">Prix</th>
@@ -76,8 +77,18 @@ function formatPrice(value) {
             :key="build.id"
             class="border-b last:border-0 hover:bg-lightgray/50"
           >
-            <td class="px-4 py-2 font-medium">{{ build.name }}</td>
-            <td class="px-4 py-2">{{ build.description || '—' }}</td>
+            <td class="px-4 py-2 font-mono text-xs text-gray-700">
+              {{ build.id }}
+            </td>
+
+            <td class="px-4 py-2 font-medium">
+              {{ build.name }}
+            </td>
+
+            <td class="px-4 py-2">
+              {{ build.description || '—' }}
+            </td>
+
             <td class="px-4 py-2">
               {{ formatPrice(build.total_price ?? build.price) }} €
             </td>

@@ -26,8 +26,11 @@ use App\Http\Controllers\Admin\CategoryController as AdminCategoryController;
 use App\Http\Controllers\Admin\ComponentTypeController as AdminComponentTypeController;
 use App\Http\Controllers\Admin\CompatibilityRuleController as AdminCompatibilityRuleController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
+
+// Commandes côté public/utilisateur
 use App\Http\Controllers\OrderController as PublicOrderController;
 use App\Http\Controllers\User\UserOrderController;
+
 /*
 |--------------------------------------------------------------------------
 | Routes PUBLIQUES (pages)
@@ -49,15 +52,13 @@ Route::resource('builds', BuildController::class)->only(['index', 'create', 'sho
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', [UserDashboardController::class, 'index'])->name('dashboard');
 
-    // Pages Checkout (Inertia)
+    // Page Checkout (Inertia)
     Route::get('/checkout', fn () => Inertia::render('Checkout/Index'))->name('checkout.index');
 
-    // Création de commande -> API controller
-    Route::post('/checkout', [ApiCheckoutController::class, 'store'])->name('checkout.store');
-
     // Page détail commande (hydrate Checkout/Index avec serverResult)
-    Route::get('/checkout/{order}', [PublicOrderController::class, 'show'])
-        ->name('checkout.show');
+    Route::get('/checkout/{order}', [PublicOrderController::class, 'show'])->name('checkout.show');
+
+    // Liste des commandes de l'utilisateur
     Route::get('/account/orders', [UserOrderController::class, 'index'])->name('account.orders.index');
 });
 
@@ -75,6 +76,9 @@ Route::middleware('auth')->group(function () {
 |--------------------------------------------------------------------------
 */
 Route::prefix('api')->middleware(['web', 'auth'])->group(function () {
+    // Checkout (création de commande) — endpoint utilisé par Checkout/Index.vue
+    Route::post('/checkout', [ApiCheckoutController::class, 'store'])->name('api.checkout.store');
+
     // Build (actions d’écriture)
     Route::post('/builds', [ApiBuildController::class, 'store'])->name('api.builds.store');
     Route::put('/builds/{build}', [ApiBuildController::class, 'update'])->name('api.builds.update');
@@ -114,8 +118,10 @@ Route::middleware(['auth', 'is_admin'])
         // Upload images
         Route::get('/images/upload', [ImageController::class, 'uploadPage'])->name('images.upload');
         Route::post('/images', [ImageController::class, 'store'])->name('images.store');
+        Route::get('/images', [ImageController::class, 'index'])->name('images.index');
 
-        Route::patch('builds/{build}/visibility', [\App\Http\Controllers\Admin\BuildController::class, 'toggleVisibility'])
+        // Visibility toggle pour les builds
+        Route::patch('builds/{build}/visibility', [AdminBuildController::class, 'toggleVisibility'])
             ->name('builds.toggle-visibility');
     });
 
