@@ -7,7 +7,11 @@ import { createApp, h } from 'vue'
 import { createPinia } from 'pinia'
 import piniaPluginPersistedstate from 'pinia-plugin-persistedstate'
 import { ZiggyVue } from '../../vendor/tightenco/ziggy'
-
+import 'flowbite'
+import 'swiper/css'
+import 'swiper/css/navigation'
+import 'swiper/css/pagination'
+import 'swiper/css/a11y'
 // Importation des layouts globaux
 import DefaultLayout from '@/Layouts/DefaultLayout.vue'
 import GuestLayout from '@/Layouts/GuestLayout.vue'

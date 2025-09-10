@@ -23,26 +23,39 @@ class BuildController extends Controller
 
     // GET /admin/builds/{build}/edit
     public function edit(Build $build)
-    {
-        $build->load('components.brand');
-        // Charger tous les composants pour permettre la sélection/édition
-        $allComponents = Component::with('brand', 'type')->paginate(15);
+{
+    // Charger quantités & snapshots prix dans le pivot + brand/type
+    $build->load([
+        'components' => fn($q) => $q
+            ->select('components.id','components.name','components.price','components.brand_id','components.component_type_id')
+            ->withPivot(['quantity','price_at_addition']),
+        'components.brand:id,name',
+        'components.type:id,name',
+    ]);
 
-        return Inertia::render('Admin/Builds/Edit', [
-            'build' => $build,
-            'allComponents' => $allComponents
-        ]);
-    }
+    // Charger tous les composants (catalogue) avec brand/type (trié par nom)
+    $allComponents = Component::with('brand:id,name', 'type:id,name')
+        ->orderBy('name')
+        ->paginate(15);
+
+    return Inertia::render('Admin/Builds/Edit', [
+        'build'         => $build,        // contient aussi is_featured / featured_rank
+        'allComponents' => $allComponents
+    ]);
+}
+
 
     // PUT/PATCH /admin/builds/{build}
     public function update(Request $request, Build $build)
     {
         $rules = [
-            'name'        => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'price'       => 'nullable|numeric',
-            'img_url'     => 'nullable|string|max:255',
-            'components'  => 'nullable|array',
+            'name'          => 'required|string|max:255',
+            'description'   => 'nullable|string',
+            'price'         => 'nullable|numeric',
+            'img_url'       => 'nullable|string|max:255',
+            'components'    => 'nullable|array',
+            'is_featured'   => 'sometimes|boolean',
+            'featured_rank' => 'nullable|integer|min:1|max:3',
         ];
 
         if ($request->filled('components')) {
@@ -59,15 +72,45 @@ class BuildController extends Controller
             'img_url'     => $data['img_url'] ?? null,
         ]);
 
+        // Champs "à la une"
+        $extra = [];
+        if ($request->has('is_featured')) {
+            $extra['is_featured'] = (bool) $request->boolean('is_featured');
+        }
+        if ($request->filled('featured_rank')) {
+            $extra['featured_rank'] = (int) $request->input('featured_rank');
+        }
+        if ($extra) {
+            $build->forceFill($extra)->save();
+        }
+
+        // Sync composants avec snapshot du prix à l’instant T
         if (!empty($data['components'])) {
-            $build->components()->sync(
-                collect($data['components'])->mapWithKeys(fn ($comp) => [
-                    $comp['component_id'] => ['quantity' => $comp['quantity']]
-                ])->toArray()
-            );
+            $rows = collect($data['components'])
+                ->filter(fn($c) => !empty($c['component_id']))
+                ->values();
+
+            $ids    = $rows->pluck('component_id')->unique()->values();
+            $prices = Component::whereIn('id', $ids)->pluck('price', 'id'); // évite le N+1
+
+            $attach = $rows->mapWithKeys(function ($c) use ($prices) {
+                $cid = (int) $c['component_id'];
+                $qty = max(1, (int) ($c['quantity'] ?? 1));
+                return [
+                    $cid => [
+                        'quantity'          => $qty,
+                        'price_at_addition' => (float) ($prices[$cid] ?? 0),
+                    ]
+                ];
+            })->toArray();
+
+            $build->components()->sync($attach);
         } else {
             $build->components()->detach();
         }
+
+        // Recalcul des totaux stockés (reporting)
+        $build->recalculateTotals();
 
         return redirect()->route('admin.builds.index');
     }
@@ -80,16 +123,6 @@ class BuildController extends Controller
 
         return redirect()->route('admin.builds.index');
     }
-    // restreindre l’accès admin :
-    /*
-    public function __construct()
-    {
-        $this->middleware(function ($request, $next) {
-            abort_unless($request->user()?->is_admin ?? false, 403);
-            return $next($request);
-        });
-    }
-    */
 
     /**
      * Basculer la visibilité (public/privé) d’un build.
@@ -120,5 +153,4 @@ class BuildController extends Controller
 
         return back()->with('success', 'Visibilité mise à jour.');
     }
-
 }

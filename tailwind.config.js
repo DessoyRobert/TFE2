@@ -8,6 +8,7 @@ export default {
         './storage/framework/views/*.php',
         './resources/views/**/*.blade.php',
         './resources/js/**/*.vue',
+        "node_modules/flowbite/**/*.js",
     ],
 
     theme: {
@@ -15,6 +16,7 @@ export default {
             fontFamily: {
                 sans: ['Figtree', ...defaultTheme.fontFamily.sans],
             },
+            plugins: [require('flowbite/plugin')],
             colors: {
                 primary: '#1ec3a6',      // Vert JarvisTech
                 cyan: '#23b59b',         // Turquoise secondaire
