@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB; // 👈 nécessaire pour scopeWithLiveTotal
 
 use App\Models\User;
 use App\Models\Image;
@@ -23,15 +24,9 @@ use App\Models\Component;
 class Build extends Model
 {
     protected $fillable = [
-        'name',
-        'user_id',
-        'img_url',
-        'description',
-        'price',            // legacy éventuel
-        'is_public',
-        'build_code',
-        'total_price',      // cache facultatif mis à jour via recalculateTotals()
-        'component_count',  // idem
+        'name','user_id','img_url','description','price','is_public','build_code',
+        'total_price','component_count',
+        'is_featured','featured_rank',
     ];
 
     protected $casts = [
@@ -39,6 +34,8 @@ class Build extends Model
         'total_price'     => 'float',
         'component_count' => 'integer',
         'is_public'       => 'boolean',
+        'is_featured'     => 'boolean',
+        'featured_rank'   => 'integer',
     ];
 
     /**
@@ -102,18 +99,14 @@ class Build extends Model
     }
 
     /**
-     * Valeur d'affichage priorisant:
-     * 1) total_price s'il est présent,
-     * 2) calculated_total sinon,
-     * 3) price (legacy) en dernier recours.
+     * Valeur d'affichage priorisant la somme dynamique des composants.
+     * Fallback ultime: price (legacy) s'il n'y a pas de composants.
      */
     public function getDisplayTotalAttribute(): float
     {
-        // Toujours dynamique : somme des composants (pivot.price_at_addition sinon composant.price)
         $calc = (float) ($this->calculated_total ?? 0);
         if ($calc > 0) return round($calc, 2);
 
-        // Fallback ultime si pas de composants (legacy)
         return round((float) ($this->price ?? 0), 2);
     }
 
@@ -174,13 +167,17 @@ class Build extends Model
               ->withPivot(['quantity', 'price_at_addition']);
         }]);
     }
+
+    /**
+     * Ajoute une colonne "live_total" (SQL) basée sur le prix ACTUEL des composants.
+     */
     public function scopeWithLiveTotal($q)
     {
-    $liveTotalSub = DB::table('build_component')
-        ->join('components', 'components.id', '=', 'build_component.component_id')
-        ->selectRaw('COALESCE(SUM(COALESCE(components.price,0) * COALESCE(build_component.quantity,1)), 0)')
-        ->whereColumn('build_component.build_id', 'builds.id');
+        $liveTotalSub = DB::table('build_component')
+            ->join('components', 'components.id', '=', 'build_component.component_id')
+            ->selectRaw('COALESCE(SUM(COALESCE(components.price,0) * COALESCE(build_component.quantity,1)), 0)')
+            ->whereColumn('build_component.build_id', 'builds.id');
 
-    return $q->select('builds.*')->selectSub($liveTotalSub, 'live_total');
+        return $q->select('builds.*')->selectSub($liveTotalSub, 'live_total');
     }
 }

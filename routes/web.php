@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
+use Illuminate\Http\Request; // 👈 nécessaire pour /checkout/success
 
 // Pages publiques (Inertia)
 use App\Http\Controllers\ComponentController;
@@ -55,14 +56,30 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Page Checkout (Inertia)
     Route::get('/checkout', fn () => Inertia::render('Checkout/Index'))->name('checkout.index');
 
+    // POST Checkout (API contrôleur, route simple pour le front)
+    Route::post('/checkout', [ApiCheckoutController::class, 'store'])->name('checkout.store'); // 👈 rétabli
+
     // Page détail commande (hydrate Checkout/Index avec serverResult)
     Route::get('/checkout/{order}', [PublicOrderController::class, 'show'])->name('checkout.show');
+
+    // Alias succès
+    Route::get('/checkout/success', function (Request $request) {
+        $id = (int) $request->query('order', 0);
+        if ($id > 0) {
+            return redirect()->route('checkout.show', ['order' => $id]);
+        }
+        return redirect()->route('checkout.index');
+    })->name('checkout.success');
 
     // Liste des commandes de l'utilisateur
     Route::get('/account/orders', [UserOrderController::class, 'index'])->name('account.orders.index');
 });
 
-// Gestion du profil
+/*
+|--------------------------------------------------------------------------
+| Gestion du profil
+|--------------------------------------------------------------------------
+*/
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
@@ -76,7 +93,7 @@ Route::middleware('auth')->group(function () {
 |--------------------------------------------------------------------------
 */
 Route::prefix('api')->middleware(['web', 'auth'])->group(function () {
-    // Checkout (création de commande) — endpoint utilisé par Checkout/Index.vue
+    // Checkout (création de commande) — alias API (peut servir si tu veux /api/checkout)
     Route::post('/checkout', [ApiCheckoutController::class, 'store'])->name('api.checkout.store');
 
     // Build (actions d’écriture)

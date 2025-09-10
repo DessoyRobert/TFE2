@@ -30,6 +30,7 @@ class BuildController extends Controller
      *  - les builds publics
      *  - + les builds de l'utilisateur connecté (si authentifié)
      * Le prix affiché est TOUJOURS dynamique (prix actuels des composants).
+     * Ajout: "featured" (3 builds à la une) pour un carousel.
      */
     public function index()
     {
@@ -49,9 +50,8 @@ class BuildController extends Controller
             ->selectSub($this->liveTotalSubquery(), 'live_total')
             // Eager-load léger pour l'affichage (image/brand/type)
             ->with([
-                // On charge une partie des colonnes composant pour limiter la charge
                 'components' => function ($q) {
-                    $q->select('components.id', 'components.name', 'components.price', 'components.brand_id');
+                    $q->select('components.id', 'components.name', 'components.price', 'components.brand_id', 'components.component_type_id');
                 },
                 'components.brand:id,name',
                 'components.images:id,imageable_id,imageable_type,url',
@@ -98,9 +98,31 @@ class BuildController extends Controller
             ];
         });
 
+        // Récupérer 3 builds "à la une" pour le carousel
+        $featured = Build::query()
+            ->where('is_public', true)
+            ->where('is_featured', true)
+            ->orderByRaw('COALESCE(featured_rank, 999) ASC')
+            ->limit(3)
+            ->with(['components.images', 'components.brand', 'components.type'])
+            ->select('builds.*')
+            ->selectSub($this->liveTotalSubquery(), 'live_total')
+            ->get()
+            ->map(function (Build $b) {
+                return [
+                    'id'            => $b->id,
+                    'name'          => $b->name,
+                    'img_url'       => $b->img_url
+                        ?? optional($b->components->first()?->images->first())->url
+                        ?? '/images/default.png',
+                    'display_total' => round((float) $b->live_total, 2),
+                ];
+            });
+
         return Inertia::render('Builds/Index', [
-            'builds'  => $builds,
-            'filters' => ['sort' => $sort],
+            'builds'   => $builds,
+            'filters'  => ['sort' => $sort],
+            'featured' => $featured,
         ]);
     }
 
@@ -231,15 +253,13 @@ class BuildController extends Controller
 
         $build->load(['components.brand', 'components.images', 'components.type']);
 
-        // Si ton modèle Build a l'accessor getDisplayTotalAttribute dynamique,
-        // on peut simplement compter dessus. Sinon, calcule ici:
+        // Calcul dynamique si tu veux exposer explicitement display_total ici aussi
         $displayTotal = $build->components->reduce(function ($sum, $c) {
             $qty  = (int)($c->pivot->quantity ?? 1);
             $unit = (float)($c->price ?? 0); // prix ACTUEL
             return $sum + ($unit * $qty);
         }, 0.0);
 
-        // On expose un attribut additionnel (utile si ton front lit build.display_total)
         $build->setAttribute('display_total', round($displayTotal, 2));
 
         return Inertia::render('Builds/Show', [

@@ -4,10 +4,11 @@ import { reactive } from 'vue'
 import GoBackButton from '@/Components/GoBackButton.vue'
 
 const props = defineProps({
+  // paginator Laravel: { data, links, ... }
   builds: { type: Object, required: true }
 })
 
-// Map des états de requête pour chaque build
+// État local pour éviter spam clics sur le toggle
 const toggling = reactive({})
 
 function destroy(id) {
@@ -48,16 +49,28 @@ function toggleVisibility(build) {
   )
 }
 
-function formatPrice(value) {
-  const n = Number(value ?? 0)
-  return n.toLocaleString('fr-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+function formatEUR(value) {
+  const n = Number.isFinite(value) ? value : (parseFloat(value ?? NaN) || 0)
+  try {
+    return new Intl.NumberFormat('fr-BE', { style: 'currency', currency: 'EUR' }).format(n)
+  } catch {
+    return `${n.toFixed(2)} €`
+  }
 }
 </script>
 
 <template>
   <div class="max-w-6xl mx-auto py-10 space-y-8">
     <GoBackButton class="mb-4" />
-    <h1 class="text-2xl font-bold text-darknavy">Gestion des Builds</h1>
+    <div class="flex items-center justify-between">
+      <h1 class="text-2xl font-bold text-darknavy">Gestion des Builds</h1>
+      <Link
+        :href="route('admin.builds.create')"
+        class="bg-primary hover:bg-cyan text-white px-4 py-2 rounded-xl text-sm shadow"
+      >
+        + Nouveau build
+      </Link>
+    </div>
 
     <div v-if="builds?.data?.length > 0">
       <table class="w-full text-sm bg-white rounded-xl shadow border">
@@ -65,8 +78,8 @@ function formatPrice(value) {
           <tr>
             <th class="px-4 py-2 text-left">ID</th>
             <th class="px-4 py-2 text-left">Nom</th>
-            <th class="px-4 py-2 text-left">Description</th>
-            <th class="px-4 py-2 text-left">Prix</th>
+            <th class="px-4 py-2 text-left">Prix (actuel)</th>
+            <th class="px-4 py-2 text-left">À la une</th>
             <th class="px-4 py-2 text-left">Public</th>
             <th class="px-4 py-2 text-left">Actions</th>
           </tr>
@@ -81,16 +94,33 @@ function formatPrice(value) {
               {{ build.id }}
             </td>
 
-            <td class="px-4 py-2 font-medium">
-              {{ build.name }}
+            <td class="px-4 py-2">
+              <div class="font-medium">{{ build.name || '—' }}</div>
+              <div class="text-xs text-gray-500 line-clamp-2 max-w-[420px]">
+                {{ build.description || '—' }}
+              </div>
             </td>
 
-            <td class="px-4 py-2">
-              {{ build.description || '—' }}
+            <!-- Prix d'affichage : display_total -> total_price -> price -->
+            <td class="px-4 py-2 font-semibold">
+              {{ formatEUR(
+                typeof build.display_total === 'number'
+                  ? build.display_total
+                  : (parseFloat(build.display_total ?? NaN) || build.total_price || build.price || 0)
+              ) }}
             </td>
 
+            <!-- À la une (lecture seule ici, édition via la page Edit) -->
             <td class="px-4 py-2">
-              {{ formatPrice(build.total_price ?? build.price) }} €
+              <span
+                v-if="build.is_featured"
+                class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-amber-100 text-amber-700"
+                title="Affiché dans le carousel"
+              >
+                ★ À la une
+                <span v-if="build.featured_rank" class="font-mono">#{{ build.featured_rank }}</span>
+              </span>
+              <span v-else class="text-xs text-gray-500">—</span>
             </td>
 
             <!-- Switch Public -->
@@ -122,7 +152,7 @@ function formatPrice(value) {
               </div>
             </td>
 
-            <td class="px-4 py-2 space-x-2">
+            <td class="px-4 py-2 space-x-2 whitespace-nowrap">
               <Link :href="route('admin.builds.edit', build.id)" class="text-blue-600 underline">Éditer</Link>
               <button @click="destroy(build.id)" class="text-red-600 underline">Supprimer</button>
             </td>
