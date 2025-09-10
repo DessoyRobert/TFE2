@@ -3,39 +3,59 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
-use App\Models\Component;
-use App\Models\CaseModel;
-use App\Models\Brand;
-use App\Models\ComponentType;
-use App\Models\Category;
+use Illuminate\Support\Facades\DB;
 
 class CaseSeeder extends Seeder
 {
-    public function run()
+    public function run(): void
     {
-        $brandId = Brand::where('name', 'NZXT')->first()?->id;
-        $typeId = ComponentType::where('name', 'case')->first()?->id;
-        $categoryId = Category::where('name', 'Boîtier')->first()?->id;
+        $now = now();
+        $typeId = DB::table('component_types')->where('name', 'case_model')->value('id');
+        $categoryId = DB::table('categories')->where('name', 'like', '%case%')->value('id');
 
-        $component = Component::create([
-            'name' => 'NZXT H510',
-            'brand_id' => $brandId,
-            'component_type_id' => $typeId,
-            'category_id' => $categoryId,
-            'price' => 84.99,
-            'img_url' => 'https://example.com/h510.jpg',
-            'description' => 'Boîtier moyen tour ATX moderne.',
-            'release_year' => 2023,
-            'ean' => '1234567890130'
-        ]);
+        $cases = [
+            // name, form_factor, max_gpu_length, max_cooler_height, psu_form_factor, fan_mounts, price, brand
+            ['NZXT H510', 'ATX', 381, 165, 'ATX', 4, 79.99, 'NZXT'],
+            ['Fractal Design Meshify C', 'ATX', 315, 170, 'ATX', 6, 89.99, 'Fractal Design'],
+            ['Corsair 4000D', 'ATX', 360, 170, 'ATX', 4, 84.99, 'Corsair'],
+            ['be quiet! Pure Base 500', 'ATX', 369, 190, 'ATX', 5, 89.99, 'be quiet!'],
+            ['Cooler Master NR200', 'Mini-ITX', 330, 155, 'SFX', 7, 99.99, 'Cooler Master'],
+            ['Phanteks Eclipse P400A', 'ATX', 420, 160, 'ATX', 6, 84.99, 'Phanteks'],
+            ['Lian Li PC-O11', 'ATX', 420, 155, 'ATX', 9, 129.99, 'Lian Li'],
+            ['Thermaltake Core V21', 'Micro-ATX', 350, 185, 'ATX', 6, 54.99, 'Thermaltake'],
+            ['Fractal Design Define 7', 'ATX', 491, 185, 'ATX', 7, 169.99, 'Fractal Design'],
+            ['NZXT H210', 'Mini-ITX', 325, 165, 'SFX', 4, 89.99, 'NZXT'],
+        ];
 
-        CaseModel::create([
-            'component_id' => $component->id,
-            'form_factor' => 'ATX',
-            'max_gpu_length' => 381,
-            'max_cooler_height' => 165,
-            'psu_form_factor' => 'ATX',
-            'fan_mounts' => 4
-        ]);
+        foreach ($cases as [$name, $form_factor, $max_gpu_length, $max_cooler_height, $psu_form_factor, $fan_mounts, $price, $brandName]) {
+            $brandId = DB::table('brands')->where('name', 'like', "%$brandName%")->value('id') ?? 1;
+
+            $componentId = DB::table('components')->insertGetId([
+                'name' => $name,
+                'component_type_id' => $typeId,
+                'brand_id' => $brandId,
+                'category_id' => $categoryId,
+                'price' => $price,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+
+            DB::table('case_models')->insert([
+                'component_id'           => $componentId,
+                'form_factor'            => $form_factor,
+                'max_gpu_length'         => $max_gpu_length,
+                'max_cooler_height'      => $max_cooler_height,
+                'psu_form_factor'        => $psu_form_factor,
+                'fan_mounts'             => $fan_mounts,
+                'supported_form_factors' => match ($form_factor) {
+                    'ATX' => 'ATX,Micro-ATX,Mini-ITX',
+                    'Micro-ATX' => 'Micro-ATX,Mini-ITX',
+                    'Mini-ITX' => 'Mini-ITX',
+                    default => 'ATX',
+                },
+                'created_at'             => $now,
+                'updated_at'             => $now,
+            ]);
+        }
     }
 }

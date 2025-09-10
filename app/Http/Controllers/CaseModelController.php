@@ -3,81 +3,59 @@
 namespace App\Http\Controllers;
 
 use App\Models\CaseModel;
-use Illuminate\Http\Request;
-use Illuminate\Http\Response;
 
 class CaseModelController extends Controller
 {
+    /**
+     * Retourne une liste paginée de boîtiers (CaseModels) avec leurs composants,
+     * marques et images Cloudinary.
+     */
     public function index()
     {
-        return CaseModel::with('component.brand')->get()->map(function ($case) {
+        $collection = CaseModel::with(['component.brand', 'component.images'])
+            ->paginate(15);
+
+        $collection->getCollection()->transform(function ($case) {
             return [
-                'id' => $case->id,
-                'component_id' => $case->component_id,
-                'name' => $case->component->name ?? '',
-                'brand' => $case->component->brand->name ?? '',
-                'price' => $case->component->price ?? '',
-                'img_url' => $case->component->img_url ?? '',
-                'form_factor' => $case->form_factor,
-                'max_gpu_length' => $case->max_gpu_length,
+                'id'                => $case->component_id,
+                'component_id'      => $case->component_id,
+                'name'              => $case->component->name ?? '',
+                'brand'             => $case->component->brand->name ?? '',
+                'brand_id'          => $case->component->brand_id ?? '',
+                'price'             => $case->component->price ?? '',
+                // On prend la 1ère image Cloudinary si dispo, sinon fallback
+                'img_url'           => optional($case->component->images->first())->url 
+                                        ?? $case->component->img_url 
+                                        ?? '/images/default.png',
+                'form_factor'       => $case->form_factor,
+                'max_gpu_length'    => $case->max_gpu_length,
                 'max_cooler_height' => $case->max_cooler_height,
             ];
         })->values();
+
+        return $collection;
     }
 
-    public function store(Request $request)
-    {
-        $validated = $request->validate([
-            'name'               => 'required|string|max:255',
-            'brand_id'           => 'required|exists:brands,id',
-            'form_factor'        => 'required|string|max:20',
-            'max_gpu_length'     => 'nullable|integer|min:0',
-            'max_cooler_height'  => 'nullable|integer|min:0',
-            'price'              => 'required|numeric|min:0',
-        ]);
-
-        $case = CaseModel::create($validated);
-
-        return response()->json($case, Response::HTTP_CREATED);
-    }
-
+    /**
+     * Retourne un boîtier précis avec toutes ses infos et images.
+     */
     public function show(CaseModel $case)
     {
-        $case->load('component.brand');
+        $case->load(['component.brand', 'component.images']);
 
         return response()->json([
-            'id' => $case->id,
-            'component_id' => $case->component_id,
-            'name' => $case->component->name ?? '',
-            'brand' => $case->component->brand->name ?? '',
-            'price' => $case->component->price ?? '',
-            'img_url' => $case->component->img_url ?? '',
-            'form_factor' => $case->form_factor,
-            'max_gpu_length' => $case->max_gpu_length,
+            'id'                => $case->component_id,
+            'component_id'      => $case->component_id,
+            'name'              => $case->component->name ?? '',
+            'brand'             => $case->component->brand->name ?? '',
+            'brand_id'          => $case->component->brand_id ?? '',
+            'price'             => $case->component->price ?? '',
+            'img_url'           => optional($case->component->images->first())->url 
+                                    ?? $case->component->img_url 
+                                    ?? '/images/default.png',
+            'form_factor'       => $case->form_factor,
+            'max_gpu_length'    => $case->max_gpu_length,
             'max_cooler_height' => $case->max_cooler_height,
-        ], Response::HTTP_OK);
-    }
-
-    public function update(Request $request, CaseModel $case)
-    {
-        $validated = $request->validate([
-            'name'               => 'required|string|max:255',
-            'brand_id'           => 'required|exists:brands,id',
-            'form_factor'        => 'required|string|max:20',
-            'max_gpu_length'     => 'nullable|integer|min:0',
-            'max_cooler_height'  => 'nullable|integer|min:0',
-            'price'              => 'required|numeric|min:0',
         ]);
-
-        $case->update($validated);
-
-        return response()->json($case, Response::HTTP_OK);
-    }
-
-    public function destroy(CaseModel $case)
-    {
-        $case->delete();
-
-        return response()->json(null, Response::HTTP_NO_CONTENT);
     }
 }

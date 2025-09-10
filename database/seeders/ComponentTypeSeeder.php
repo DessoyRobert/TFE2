@@ -17,7 +17,7 @@ public function run()
         'storage',
         'psu',
         'cooler',
-        'case',
+        'case_model',
         'motherboard',
     ];
     foreach ($types as $type) {

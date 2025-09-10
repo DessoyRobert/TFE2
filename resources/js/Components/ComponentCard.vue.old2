@@ -1,0 +1,283 @@
+<script setup>
+import { computed, ref, watch } from 'vue'
+import { Link } from '@inertiajs/vue3'
+
+defineOptions({ name: 'ComponentCard' })
+
+const props = defineProps({
+  item: { type: Object, required: true },
+  disableSelect: { type: Boolean, default: false },
+  compatibilityHint: { type: String, default: '' },
+  showDetails: { type: Boolean, default: true },
+  showAddToCart: { type: Boolean, default: false },
+  selected: { type: Boolean, default: false },
+  compact: { type: Boolean, default: false },
+  lazy: { type: Boolean, default: true },
+  currency: { type: String, default: 'EUR' },
+  locale: { type: String, default: 'fr-BE' },
+})
+
+const emit = defineEmits(['select', 'add', 'details'])
+
+/* ---------- Prix ---------- */
+const fmt = computed(() => new Intl.NumberFormat(props.locale, { style: 'currency', currency: props.currency }))
+const price = computed(() => Number(props.item?.price ?? NaN))
+const promoPrice = computed(() => {
+  const p = Number(props.item?.promo_price ?? NaN)
+  return Number.isFinite(p) ? p : null
+})
+const priceText = computed(() => {
+  const n = promoPrice.value ?? price.value
+  return Number.isFinite(n) ? fmt.value.format(n) : ''
+})
+const oldPriceText = computed(() => (promoPrice.value && Number.isFinite(price.value) ? fmt.value.format(price.value) : ''))
+
+/* ---------- Brand / type ---------- */
+const brandName = computed(() => {
+  const b = props.item?.brand
+  return typeof b === 'string' ? b : (b?.name ?? '')
+})
+const typeName = computed(() => props.item?.type?.name ?? props.item?.type ?? '')
+
+/* ---------- Image ---------- */
+function pickImageUrl(item) {
+  const url =
+    item?.images?.[0]?.url ??
+    item?.component?.images?.[0]?.url ??
+    item?.component?.img_url ??
+    item?.img_url ??
+    null
+  if (!url) return '/images/placeholder-component.svg'
+  return url.includes('/upload/')
+    ? url.replace('/upload/', '/upload/f_auto,q_auto,w_480,h_320,c_fit/')
+    : url
+}
+const imgSrc = ref(pickImageUrl(props.item))
+watch(() => props.item, (it) => { imgSrc.value = pickImageUrl(it) }, { deep: true })
+function onImgError() { imgSrc.value = '/images/placeholder-component.svg' }
+
+/* ---------- Specs courtes robustes ---------- */
+// helper: cherche une clé dans item OU item.specs/details/attributes/meta
+function pick(...keys) {
+  const pools = [props.item, props.item?.specs, props.item?.details, props.item?.attributes, props.item?.meta]
+  for (const p of pools) {
+    if (!p) continue
+    for (const k of keys) {
+      const v = p?.[k]
+      if (v !== '' && v !== null && v !== undefined) return v
+    }
+  }
+  return null
+}
+const toInt = (v) => {
+  const n = Number(String(v).replace(/[^\d.]/g, ''))
+  return Number.isFinite(n) ? Math.round(n) : null
+}
+const toGHz = (v) => {
+  if (v == null || v === '') return null
+  const s = String(v).toLowerCase()
+  const n = Number(s.replace(/[^\d.]/g, ''))
+  if (!Number.isFinite(n)) return null
+  const ghz = s.includes('mhz') || n > 10 ? n / 1000 : n
+  return `${ghz.toFixed(1)} GHz`
+}
+const watt = (v) => {
+  const n = toInt(v)
+  return n ? `${n} W` : null
+}
+const efficiency = (v, fallbackName = '') => {
+  let src = (v ? String(v) : '') || fallbackName
+  src = src.toUpperCase().replace(/\s+/g, '')
+  const m = src.match(/80\+?(BRONZE|SILVER|GOLD|PLATINUM|TITANIUM)/)
+  if (m) {
+    const word = m[1].toLowerCase()
+    return `80+ ${word[0].toUpperCase()}${word.slice(1)}`
+  }
+  return null
+}
+const gb = (v) => {
+  const n = toInt(v)
+  return n ? `${n} GB` : null
+}
+const mhz = (v) => {
+  const n = toInt(v)
+  return n ? `${n} MHz` : null
+}
+
+const typeKey = computed(() => {
+  const t = String(typeName.value || '').toLowerCase()
+  if (t.includes('alimentation') || t.includes('psu') || t.includes('power')) return 'psu'
+  if (t.includes('cpu') || t.includes('processeur')) return 'cpu'
+  if (t.includes('gpu') || t.includes('carte')) return 'gpu'
+  if (t.includes('ram') || t.includes('mémoire')) return 'ram'
+  if (t.includes('storage') || t.includes('ssd') || t.includes('hdd')) return 'storage'
+  return t
+})
+
+const shortSpecs = computed(() => {
+  const it = props.item || {}
+
+  if (typeKey.value === 'cpu') {
+    const cores   = pick('cores','core_count','n_cores')
+    const threads = pick('threads','thread_count')
+    const base    = toGHz(pick('base_clock','base_frequency','clock','frequency','base_clock_mhz'))
+    const boost   = toGHz(pick('boost_clock','turbo_clock','max_boost','boost_clock_mhz'))
+    const ct = cores && threads ? `${cores} cœurs / ${threads} threads` : (cores ? `${cores} cœurs` : null)
+    const freq = boost ? (base ? `${base} → ${boost}` : boost) : base
+    return [ct, freq].filter(Boolean).join(' — ')
+  }
+
+  if (typeKey.value === 'psu') {
+    // d’abord champs dédiés…
+    const w   = watt(pick('wattage','power','max_power'))
+    const eff = efficiency(pick('efficiency','efficiency_rating','efficiency_class'), it.name ?? '')
+    // … puis fallback parsing depuis le nom (ex: “650W”, “80+ Bronze”)
+    const name = String(it.name || '')
+    const wFromName = name.match(/(\d{3,4})\s*W/i)?.[1]
+    const w2 = w || (wFromName ? `${wFromName} W` : null)
+    const e2 = eff || efficiency(null, name)
+    return [w2, e2].filter(Boolean).join(' — ')
+  }
+
+  if (typeKey.value === 'gpu') {
+    const vram = gb(pick('vram','memory_size','vram_size','memory'))
+    const clk  = toGHz(pick('base_clock','boost_clock','game_clock'))
+    return [vram, clk].filter(Boolean).join(' — ')
+  }
+
+  if (typeKey.value === 'ram') {
+    const cap = gb(pick('capacity','size','capacity_gb'))
+    const spd = mhz(pick('speed','frequency','speed_mhz'))
+    return [cap, spd].filter(Boolean).join(' — ')
+  }
+
+  if (typeKey.value.includes('storage') || typeKey.value.includes('ssd') || typeKey.value.includes('hdd')) {
+    const cap  = pick('capacity_human','capacity','size')
+    const bus  = pick('interface','bus','protocol') // NVMe / SATA
+    const form = pick('form_factor','type')
+    return [cap, bus || form].filter(Boolean).join(' — ')
+  }
+
+  return ''
+})
+
+/* ---------- Liens & a11y ---------- */
+const detailsHref = computed(() => {
+  const id = props.item?.id ?? props.item?.component_id
+  if (!id) return null
+  try {
+    // eslint-disable-next-line no-undef
+    return typeof route !== 'undefined' ? route('components.details', id) : `/components/${id}/details`
+  } catch {
+    return `/components/${id}/details`
+  }
+})
+const selectAria = computed(() => {
+  const base = `Sélectionner ${props.item?.name ?? 'ce composant'}`
+  return props.disableSelect && props.compatibilityHint
+    ? `${base} — indisponible : ${props.compatibilityHint}`
+    : base
+})
+
+/* ---------- Actions ---------- */
+function onSelect()  { if (!props.disableSelect) emit('select', props.item) }
+function onAdd()     { emit('add', props.item) }
+function onDetails() { emit('details', props.item) }
+</script>
+
+<template>
+  <div
+    class="bg-white rounded-xl shadow-md p-4 flex flex-col justify-between ring-1 ring-transparent transition
+           hover:shadow-lg focus-within:ring-primary/40"
+    :class="[{ 'ring-2 ring-primary': selected }, compact ? 'gap-2' : 'gap-3']"
+  >
+    <div class="block group">
+      <div class="w-full rounded-lg overflow-hidden bg-slate-50 border border-slate-100"
+           :class="compact ? 'h-28' : 'h-32'">
+        <img
+          :src="imgSrc"
+          :alt="item?.name || 'Composant'"
+          width="480" height="320"
+          class="w-full h-full object-contain transition-transform group-hover:scale-[1.02]"
+          :loading="lazy ? 'lazy' : 'eager'"
+          decoding="async"
+          @error="onImgError"
+        />
+      </div>
+
+      <h3 class="mt-2 font-semibold leading-snug truncate" :class="compact ? 'text-sm' : 'text-base'" :title="item?.name">
+        {{ item?.name }}
+      </h3>
+
+      <div class="mt-1 flex flex-wrap items-center gap-1.5">
+        <span v-if="brandName" class="text-[11px] font-medium px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+          {{ brandName }}
+        </span>
+        <span v-if="typeName" class="text-[11px] font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
+          {{ typeName }}
+        </span>
+        <span v-if="disableSelect" class="text-[11px] font-medium px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200" :title="compatibilityHint || 'Incompatible avec votre sélection'">
+          Incompatible
+        </span>
+      </div>
+
+      <!-- 🔎 specs courtes -->
+      <p v-if="shortSpecs" class="mt-1 text-xs text-slate-600 truncate" :title="shortSpecs">
+        {{ shortSpecs }}
+      </p>
+
+      <!-- prix -->
+      <div class="mt-1">
+        <template v-if="promoPrice">
+          <span class="text-slate-500 line-through mr-2 text-sm">{{ oldPriceText }}</span>
+          <span class="font-semibold text-primary">{{ priceText }}</span>
+        </template>
+        <template v-else>
+          <span class="font-semibold text-slate-900">{{ priceText }}</span>
+        </template>
+      </div>
+    </div>
+
+    <div class="mt-3 flex items-center gap-2">
+      <button
+        type="button"
+        class="flex-1 px-3 py-2 rounded-lg text-white transition
+               focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-primary
+               disabled:opacity-50 disabled:cursor-not-allowed
+               bg-primary hover:bg-cyan"
+        :disabled="disableSelect"
+        :aria-disabled="disableSelect ? 'true' : 'false'"
+        :aria-label="selectAria"
+        :title="disableSelect ? (compatibilityHint || 'Incompatible avec votre sélection') : undefined"
+        @click="onSelect"
+      >
+        {{ selected ? 'Sélectionné' : 'Sélectionner' }}
+      </button>
+
+      <Link
+        v-if="showDetails && detailsHref"
+        :href="detailsHref"
+        preserve-scroll
+        class="px-3 py-2 text-sm rounded-lg border border-gray-200 hover:bg-gray-50
+               focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-slate-300"
+        @click="onDetails"
+      >
+        Détails
+      </Link>
+
+      <button
+        v-if="showAddToCart"
+        type="button"
+        class="px-3 py-2 text-sm rounded-lg bg-blue-600 hover:bg-blue-700 text-white
+               focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-400"
+        @click="onAdd"
+        :aria-label="`Ajouter ${item?.name ?? 'le composant'} au panier`"
+      >
+        + Panier
+      </button>
+    </div>
+
+    <slot name="badge" />
+    <slot name="footer" />
+  </div>
+</template>

@@ -2,83 +2,140 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Controllers\Controller;
 use App\Models\Component;
 use Illuminate\Http\Request;
 
 class ComponentController extends Controller
 {
-    // GET /api/components
-    public function index()
+    /**
+     * Liste paginée des composants (Inertia).
+     * -> On charge aussi les images pour éviter les N+1 et fournir un img_url fiable.
+     */
+    public function indexPage(Request $request)
     {
-        // On charge la brand (et type si tu veux)
-        return Component::with(['brand', 'type'])->get()->map(function ($component) {
+        $perPage = $request->input('per_page', 15);
+
+        $query = Component::with(['brand', 'type', 'images']);
+
+        if ($search = $request->input('search')) {
+            $query->where('name', 'ilike', "%$search%")
+                ->orWhereHas('brand', fn($q) => $q->where('name', 'ilike', "%$search%"))
+                ->orWhereHas('type', fn($q) => $q->where('name', 'ilike', "%$search%"));
+        }
+
+        if ($sortBy = $request->input('sortBy')) {
+            $sortDesc = $request->boolean('sortDesc', false);
+            $query->orderBy($sortBy, $sortDesc ? 'desc' : 'asc');
+        } else {
+            $query->orderBy('id', 'desc');
+        }
+
+        $components = $query->paginate($perPage)->withQueryString();
+
+        // Normalisation: on expose un img_url fiable (Cloudinary -> fallback)
+        $components->getCollection()->transform(function ($component) {
             return [
-                'id' => $component->id,
-                'name' => $component->name,
-                'brand' => $component->brand->name ?? '',
-                'type' => $component->type->name ?? '',
-                'price' => $component->price,
-                'img_url' => $component->img_url,
-                'description' => $component->description,
-                'release_year' => $component->release_year,
-                'ean' => $component->ean,
-                // Ajoute ici d'autres champs spécifiques si tu veux
+                'id'      => $component->id,
+                'name'    => $component->name,
+                'brand'   => $component->brand->name ?? '',
+                'type'    => $component->type->name ?? '',
+                'price'   => $component->price,
+                'img_url' => optional($component->images->first())->url
+                            ?? $component->img_url
+                            ?? '/images/default.png',
             ];
-        })->values();
-    }
+        });
 
-    // POST /api/components
-    public function store(Request $request)
-    {
-        $data = $request->validate([
-            'name' => 'required',
-            'brand_id' => 'required|exists:brands,id',
-            'component_type_id' => 'required|exists:component_types,id',
-            'price' => 'nullable|numeric',
-            'img_url' => 'nullable|string',
-            'description' => 'nullable|string',
-            'release_year' => 'nullable|integer',
-            'ean' => 'nullable|string'
+        return inertia('Components/Index', [
+            'components' => $components,
+            'filters'    => $request->only(['search', 'sortBy', 'sortDesc']),
         ]);
-
-        $component = Component::create($data);
-
-        return response()->json($component->load(['brand', 'type']), 201);
     }
 
-    // GET /api/components/{id}
+    /**
+     * JSON complet d'un composant (API / debug).
+     * -> On inclut les images et on remplace img_url si Cloudinary existe.
+     */
     public function show($id)
     {
-        $component = Component::with(['brand', 'type', 'cpu', 'gpu', 'ram', 'motherboard', 'storage', 'psu', 'cooler', 'casemodel'])->findOrFail($id);
+        $component = Component::with([
+            'brand', 'type', 'cpu', 'gpu', 'ram',
+            'motherboard', 'storage', 'psu', 'cooler', 'casemodel', 'images'
+        ])->findOrFail($id);
+
+        // Priorité à Cloudinary ; sinon img_url existant ; sinon placeholder
+        $component->img_url = optional($component->images->first())->url
+                              ?? $component->img_url
+                              ?? '/images/default.png';
+
         return response()->json($component);
     }
 
-    // PUT/PATCH /api/components/{id}
-    public function update(Request $request, $id)
+    /**
+     * Page Détails (Inertia) + bouton "Ajouter au build".
+     * -> Envoie un objet "component" déjà prêt pour le front (img_url fiable + images).
+     */
+    public function showDetailPage(Component $component)
     {
-        $component = Component::findOrFail($id);
-        $data = $request->validate([
-            'name' => 'required',
-            'brand_id' => 'required|exists:brands,id',
-            'component_type_id' => 'required|exists:component_types,id',
-            'price' => 'nullable|numeric',
-            'img_url' => 'nullable|string',
-            'description' => 'nullable|string',
-            'release_year' => 'nullable|integer',
-            'ean' => 'nullable|string'
+        $component->load([
+            'brand', 'type', 'cpu', 'gpu', 'ram',
+            'motherboard', 'storage', 'psu', 'cooler', 'casemodel', 'images'
         ]);
 
-        $component->update($data);
+        // Détails spécifiques selon le type
+        $details = collect([
+            'cpu'         => $component->cpu,
+            'gpu'         => $component->gpu,
+            'ram'         => $component->ram,
+            'motherboard' => $component->motherboard,
+            'storage'     => $component->storage,
+            'psu'         => $component->psu,
+            'cooler'      => $component->cooler,
+            'casemodel'   => $component->casemodel,
+        ])->filter()->first();
 
-        return response()->json($component->load(['brand', 'type']));
+        return inertia('Components/Details', [
+            'component' => [
+                'id'          => $component->id,
+                'name'        => $component->name,
+                'price'       => $component->price,
+                'description' => $component->description,
+                'img_url'     => optional($component->images->first())->url
+                                 ?? $component->img_url
+                                 ?? '/images/default.png',
+                'brand'       => $component->brand,
+                'type'        => $component->type,
+                'images'      => $component->images, // garde la galerie complète
+            ],
+            'details' => $details
+                ? collect($details)->except(['id', 'component_id', 'created_at', 'updated_at'])->toArray()
+                : [],
+            'type' => strtolower(optional($component->type)->name ?? ''),
+        ]);
     }
 
-    // DELETE /api/components/{id}
-    public function destroy($id)
+    /**
+     * Fallback simple (peu utilisée).
+     */
+    public function detailsPage(Component $component)
     {
-        $component = Component::findOrFail($id);
-        $component->delete();
-        return response()->json(null, 204);
+        $component->load([
+            'brand', 'type', 'cpu', 'gpu', 'ram',
+            'motherboard', 'storage', 'psu', 'cooler', 'casemodel', 'images'
+        ]);
+
+        return inertia('Components/Details', [
+            'component' => [
+                'id'      => $component->id,
+                'name'    => $component->name,
+                'brand'   => $component->brand,
+                'type'    => $component->type,
+                'price'   => $component->price,
+                'img_url' => optional($component->images->first())->url
+                             ?? $component->img_url
+                             ?? '/images/default.png',
+            ],
+            'type' => strtolower(optional($component->type)->name ?? ''),
+        ]);
     }
 }

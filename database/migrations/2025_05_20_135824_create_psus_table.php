@@ -6,26 +6,19 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
-public function up()
-{
-    Schema::create('psus', function (Blueprint $table) {
-        $table->id();
-        $table->foreignId('component_id')->constrained('components')->onDelete('cascade');
-        $table->unsignedSmallInteger('wattage');
-        $table->string('certification');
-        $table->boolean('modular');
-        $table->string('form_factor');
-        $table->timestamps();
-    });
-}
+    public function up(): void
+    {
+        Schema::create('psus', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('component_id')->constrained('components')->onDelete('cascade');
+            $table->integer('wattage');
+            $table->string('certification', 50);
+            $table->boolean('modular');
+            $table->string('form_factor', 20)->nullable(); // optionnel
+            $table->timestamps();
+        });
+    }
 
-
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('psus');

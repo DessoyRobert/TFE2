@@ -17,7 +17,7 @@ public function run()
         ComponentTypeSeeder::class,
         CategorySeeder::class,
         BrandSeeder::class,
-        ComponentSeeder::class,
+        //ComponentSeeder::class,
         CpuSeeder::class,
         GpuSeeder::class,
         RamSeeder::class,
@@ -26,11 +26,8 @@ public function run()
         PsuSeeder::class,
         CoolerSeeder::class,
         CaseSeeder::class,
+        CompatibilityRuleSeeder::class,
+        UserSeeder::class,
            ]);
-    // Create a default user
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-        ]);
     }
 }

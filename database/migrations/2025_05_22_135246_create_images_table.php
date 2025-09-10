@@ -6,12 +6,11 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void {
         Schema::create('images', function (Blueprint $table) {
-            $table->id();
-            $table->unsignedBigInteger('component_id');
-            $table->string('url');
-            $table->timestamps();
-
-            $table->foreign('component_id')->references('id')->on('components')->onDelete('cascade');
+        $table->id();
+        $table->string('url');
+        $table->nullableMorphs('imageable'); // ➜ crée imageable_id + imageable_type
+        $table->string('imageable_type');
+        $table->timestamps();
         });
     }
     public function down(): void {

@@ -2,11 +2,8 @@
 
 use Illuminate\Support\Facades\Route;
 
-// Import des controllers
+// Contrôleurs PUBLICS (retours JSON)
 use App\Http\Controllers\ComponentController;
-use App\Http\Controllers\BuildController;
-use App\Http\Controllers\BrandController;
-use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\CpuController;
 use App\Http\Controllers\GpuController;
 use App\Http\Controllers\RamController;
@@ -15,47 +12,51 @@ use App\Http\Controllers\StorageController;
 use App\Http\Controllers\PsuController;
 use App\Http\Controllers\CoolerController;
 use App\Http\Controllers\CaseModelController;
-use App\Http\Controllers\ImageController;
+use App\Http\Controllers\BrandController;
+use App\Http\Controllers\CategoryController;
 
-// Routes API REST (préfères ces routes pour ton front en Vue.js/Inertia)
+use App\Http\Controllers\Api\BuildValidationTempController;
 
-// Composants spécifiques
-Route::apiResource('cpus', CpuController::class);
-Route::apiResource('gpus', GpuController::class);
-Route::apiResource('rams', RamController::class);
-Route::apiResource('motherboards', MotherboardController::class);
-Route::apiResource('storages', StorageController::class);
-Route::apiResource('psus', PsuController::class);
-Route::apiResource('coolers', CoolerController::class);
-Route::apiResource('case-models', CaseModelController::class);
+// ---------------------------------------------------------------------
+// API PUBLIQUE EN LECTURE (stateless). Aucune route nécessitant la session ici.
+// ---------------------------------------------------------------------
 
-// Table parent "générique"
-Route::apiResource('components', ComponentController::class);
+// Composants (lecture seule)
+Route::get('components', [ComponentController::class, 'index']);
+Route::get('components/{component}', [ComponentController::class, 'show']);
 
-// Marques & catégories
-Route::apiResource('brands', BrandController::class);
-Route::apiResource('categories', CategoryController::class);
+Route::get('cpus', [CpuController::class, 'index']);
+Route::get('cpus/{cpu}', [CpuController::class, 'show']);
 
-// Builds & relations builds <-> composants
-Route::apiResource('builds', BuildController::class);
+Route::get('gpus', [GpuController::class, 'index']);
+Route::get('gpus/{gpu}', [GpuController::class, 'show']);
 
-// Images
-Route::apiResource('images', ImageController::class);
+Route::get('rams', [RamController::class, 'index']);
+Route::get('rams/{ram}', [RamController::class, 'show']);
 
-// (optionnel) Middleware d’authentification API pour certaines routes
-// Route::middleware('auth:sanctum')->group(function () {
-//     Route::apiResource('builds', BuildController::class);
-//     // autres routes protégées
-// });
+Route::get('motherboards', [MotherboardController::class, 'index']);
+Route::get('motherboards/{motherboard}', [MotherboardController::class, 'show']);
 
-/*
-|-------------------------------------
-| Exemple de points d’API accessibles :
-| GET      /api/cpus
-| GET      /api/cpus/{id}
-| POST     /api/cpus
-| PUT/PATCH /api/cpus/{id}
-| DELETE   /api/cpus/{id}
-| ... idem pour chaque ressource ci-dessus
-|-------------------------------------
-*/
+Route::get('storages', [StorageController::class, 'index']);
+Route::get('storages/{storage}', [StorageController::class, 'show']);
+
+Route::get('psus', [PsuController::class, 'index']);
+Route::get('psus/{psu}', [PsuController::class, 'show']);
+
+Route::get('coolers', [CoolerController::class, 'index']);
+Route::get('coolers/{cooler}', [CoolerController::class, 'show']);
+
+Route::get('case-models', [CaseModelController::class, 'index']);
+Route::get('case-models/{case_model}', [CaseModelController::class, 'show']);
+
+Route::get('brands', [BrandController::class, 'index']);
+Route::get('brands/{brand}', [BrandController::class, 'show']);
+
+Route::get('categories', [CategoryController::class, 'index']);
+Route::get('categories/{category}', [CategoryController::class, 'show']);
+
+// Validation/compat temporaire (publique)
+Route::post('builds/validate-temp', BuildValidationTempController::class);
+
+
+
