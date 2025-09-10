@@ -244,26 +244,58 @@ class BuildController extends Controller
     {
         $user = Auth::user();
 
+        // On recharge le build avec la colonne "live_total" calculée en SQL
+        $build = Build::query()
+            ->whereKey($build->id)
+            ->select('builds.*')
+            ->selectSub($this->liveTotalSubquery(), 'live_total')
+            ->with([
+                'components' => function ($q) {
+                    $q->select('components.id', 'components.name', 'components.price', 'components.brand_id', 'components.component_type_id');
+                },
+                'components.brand:id,name',
+                'components.images:id,imageable_id,imageable_type,url',
+                'components.type:id,name',
+            ])
+            ->firstOrFail();
+
+        // Autorisation: public ou propriétaire/admin
         $canView = $build->is_public
             || ($user && ($user->id === $build->user_id || ($user->is_admin ?? false)));
+        if (!$canView) abort(404);
 
-        if (!$canView) {
-            abort(404);
-        }
+        // Image principale
+        $primaryImage = $build->img_url
+            ?? optional($build->components->first()?->images->first())->url
+            ?? '/images/default.png';
 
-        $build->load(['components.brand', 'components.images', 'components.type']);
+        // On mappe un payload clair pour la vue
+        $payload = [
+            'id'            => $build->id,
+            'name'          => $build->name,
+            'description'   => $build->description,
+            'img_url'       => $primaryImage,
+            // => PRIX LIVE TOUJOURS À JOUR
+            'display_total' => round((float) $build->live_total, 2),
+            'components'    => $build->components->map(function ($c) {
+                return [
+                    'id'    => $c->id,
+                    'name'  => $c->name,
+                    'price' => (float) $c->price,
+                    'brand' => $c->brand?->only(['id','name']),
+                    'component_type' => [
+                        'slug' => \Illuminate\Support\Str::slug($c->type->name ?? ''),
+                        'name' => $c->type->name ?? null,
+                    ],
+                    'images' => $c->images?->map(fn($img) => [
+                        'id'  => $img->id,
+                        'url' => $img->url,
+                    ])->values() ?? [],
+                ];
+            })->values(),
+        ];
 
-        // Calcul dynamique si tu veux exposer explicitement display_total ici aussi
-        $displayTotal = $build->components->reduce(function ($sum, $c) {
-            $qty  = (int)($c->pivot->quantity ?? 1);
-            $unit = (float)($c->price ?? 0); // prix ACTUEL
-            return $sum + ($unit * $qty);
-        }, 0.0);
-
-        $build->setAttribute('display_total', round($displayTotal, 2));
-
-        return Inertia::render('Builds/Show', [
-            'build' => $build,
-        ]);
+        return Inertia::render('Builds/Show', ['build' => $payload]);
     }
+
 }
