@@ -5,9 +5,11 @@ namespace App\Http\Controllers;
 use App\Models\Cooler;
 
 class CoolerController extends Controller
-{
+{protected string $fallbackImage =
+        'https://res.cloudinary.com/djllwl8c0/image/upload/v1753292540/Logo-JarvisTech-PNG-normalsansfond_pgxlrj.png';
     public function index()
     {
+         
 
         $collection = Cooler::with(['component.brand', 'component.images'])->paginate(15);
 
@@ -20,7 +22,7 @@ class CoolerController extends Controller
                 'price'         => $cooler->component->price ?? '',
                 'img_url'       => optional($cooler->component->images->first())->url
                                     ?? $cooler->component->img_url
-                                    ?? '/images/default.png',
+                                    ?? $this->fallbackImage,
                 'type'          => $cooler->type,
                 'fan_count'     => $cooler->fan_count,
             ];
@@ -41,7 +43,7 @@ class CoolerController extends Controller
             'price'         => $cooler->component->price ?? '',
             'img_url'       => optional($cooler->component->images->first())->url
                                 ?? $cooler->component->img_url
-                                ?? '/images/default.png',
+                                ?? $this->fallbackImage,
             'type'          => $cooler->type,
             'fan_count'     => $cooler->fan_count,
         ]);

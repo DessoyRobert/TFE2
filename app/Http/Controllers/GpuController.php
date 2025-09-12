@@ -5,7 +5,9 @@ namespace App\Http\Controllers;
 use App\Models\Gpu;
 
 class GpuController extends Controller
-{
+{ protected string $fallbackImage =
+        'https://res.cloudinary.com/djllwl8c0/image/upload/v1753292540/Logo-JarvisTech-PNG-normalsansfond_pgxlrj.png';
+
     // GET /gpus
     public function index()
     {
@@ -20,7 +22,7 @@ class GpuController extends Controller
                 'price'         => $gpu->component->price ?? '',
                 'img_url'       => optional($gpu->component->images->first())->url
                                     ?? $gpu->component->img_url
-                                    ?? '/images/default.png',
+                                    ?? $this->fallbackImage,
                 'chipset'       => $gpu->chipset,
                 'memory'        => $gpu->memory,
                 'base_clock'    => $gpu->base_clock ?? null,
@@ -45,7 +47,7 @@ class GpuController extends Controller
             'price'         => $gpu->component->price ?? '',
             'img_url'       => optional($gpu->component->images->first())->url
                                 ?? $gpu->component->img_url
-                                ?? '/images/default.png',
+                                ?? $this->fallbackImage,
             'chipset'       => $gpu->chipset,
             'memory'        => $gpu->memory,
             'base_clock'    => $gpu->base_clock ?? null,

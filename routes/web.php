@@ -17,7 +17,7 @@ use App\Http\Controllers\Api\BuildController as ApiBuildController;
 use App\Http\Controllers\Api\CheckoutController as ApiCheckoutController;
 
 // Admin Panel
-use App\Http\Controllers\Admin\ImageController;
+use App\Http\Controllers\Admin\ImageController as AdminImageController;
 use App\Http\Controllers\Admin\OrderController as AdminOrderController;
 use App\Http\Controllers\Admin\ComponentController as AdminComponentController;
 use App\Http\Controllers\Admin\BuildController as AdminBuildController;
@@ -133,9 +133,11 @@ Route::middleware(['auth', 'is_admin'])
         Route::resource('compatibility-rules', AdminCompatibilityRuleController::class);
 
         // Upload images
-        Route::get('/images/upload', [ImageController::class, 'uploadPage'])->name('images.upload');
-        Route::post('/images', [ImageController::class, 'store'])->name('images.store');
-        Route::get('/images', [ImageController::class, 'index'])->name('images.index');
+        Route::get('/images', [AdminImageController::class, 'index'])->name('images.index');      // => admin.images.index
+        Route::get('/images/upload', [AdminImageController::class, 'uploadPage'])->name('images.upload'); // => admin.images.upload
+        Route::post('/images', [AdminImageController::class, 'store'])->name('images.store');     // => admin.images.store
+        Route::delete('/images/{image}', [AdminImageController::class, 'destroy'])->name('images.destroy'); // => admin.images.destroy
+        Route::post('/images/{image}/primary', [AdminImageController::class, 'makePrimary'])->name('images.primary'); // => admin.images.primary
 
         // Visibility toggle pour les builds
         Route::patch('builds/{build}/visibility', [AdminBuildController::class, 'toggleVisibility'])

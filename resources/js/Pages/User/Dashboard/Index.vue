@@ -36,21 +36,6 @@ function formatEUR(value, currency = 'EUR') {
       </div>
     </div>
 
-    <!-- 3 tuiles -->
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-      <div class="bg-white rounded-2xl shadow p-5">
-        <div class="text-3xl font-bold">{{ builds.length }}</div>
-        <div class="text-gray-600">Mes derniers builds (affichés ci-dessous)</div>
-      </div>
-      <div class="bg-white rounded-2xl shadow p-5">
-        <div class="text-3xl font-bold">{{ orders.length }}</div>
-        <div class="text-gray-600">Mes dernières commandes</div>
-      </div>
-      <div class="bg-white rounded-2xl shadow p-5">
-        <div class="text-sm text-gray-600">Astuce</div>
-        <div class="font-medium">Ouvre un build et clique “Sauvegarder & Commander”</div>
-      </div>
-    </div>
 
     <!-- Derniers builds -->
     <div class="space-y-3">

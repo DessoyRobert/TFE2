@@ -7,6 +7,7 @@ use Illuminate\Http\Response;
 
 class BrandController extends Controller
 {
+    
     // GET /brands (liste toutes les marques)
     public function index()
     {

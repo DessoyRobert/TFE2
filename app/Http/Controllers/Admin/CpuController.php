@@ -11,6 +11,7 @@ use Illuminate\Http\Response;
 
 class CpuController extends Controller
 {
+    
     // POST /admin/cpus
     public function store(Request $request)
     {

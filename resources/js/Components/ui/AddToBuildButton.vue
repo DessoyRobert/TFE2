@@ -12,8 +12,30 @@ const build = useBuildStore()
 const busy = ref(false)
 const confirmReplace = ref(false)
 
-const key = computed(() => build.resolveTypeFromComponent(props.component))
-const selected = computed(() => key.value ? build.build[key.value] : null)
+/* ----------------------- Résolution clé de slot ----------------------- */
+// mini slug sans dépendance
+function slugify(s = '') {
+  return String(s).toLowerCase().trim()
+    .replace(/\s+/g, '_').replace(/-+/g, '_').replace(/[^\w_]/g, '')
+}
+// fallback si le store n’a pas resolveTypeFromComponent
+function fallbackResolveType(c) {
+  const raw =
+    c?.component_type?.name ??
+    c?.type?.name ??
+    c?.type ??
+    ''
+  const s = slugify(raw)
+  // normalise quelques cas
+  const map = { 'case': 'case_model', 'boitier': 'case_model', 'stockage': 'storage' }
+  return map[s] || s
+}
+
+const key = computed(() =>
+  build.resolveTypeFromComponent?.(props.component) || fallbackResolveType(props.component)
+)
+
+const selected = computed(() => key.value ? build.build?.[key.value] : null)
 
 const dejaAjoute = computed(() => {
   const cur = selected.value
@@ -22,16 +44,26 @@ const dejaAjoute = computed(() => {
 })
 
 const incompatible = computed(() => {
-  // On utilise la compatibilité proactive si dispo
-  return key.value && !build.isCompatible?.(key.value, props.component?.id)
+  if (!key.value || !props.component?.id) return false
+  // si la méthode n’existe pas on ne bloque pas
+  return build.isCompatible ? !build.isCompatible(key.value, props.component.id) : false
 })
 
+/* ---------------------------- Actions ---------------------------- */
 async function add() {
+  console.debug('[AddToBuild] click', {
+    key: key.value,
+    compId: props.component?.id,
+    selected: selected.value,
+    dejaAjoute: dejaAjoute.value,
+    incompatible: incompatible.value,
+  })
+
   if (!key.value) {
     alert("Type inconnu, impossible d'ajouter au build.")
     return
   }
-  // Remplacement si un autre composant du même type est déjà présent
+  if (incompatible.value) return
   if (selected.value && !dejaAjoute.value) {
     confirmReplace.value = true
     return
@@ -42,14 +74,48 @@ async function add() {
 function doAdd() {
   busy.value = true
   try {
-    build.addFromComponent(props.component)
+    // 1) API “officielle” si dispo
+    if (typeof build.addFromComponent === 'function') {
+      build.addFromComponent(props.component)
+    }
+    // 2) Sinon addComponent(key, payload) si dispo
+    else if (typeof build.addComponent === 'function') {
+      const c = props.component
+      build.addComponent(key.value, {
+        id: c.id,
+        component_id: c.id,
+        name: c.name,
+        price: c.price,
+        img_url: c.img_url,
+      })
+    }
+    // 3) Fallback direct sur l’état
+    else if (build.build && Object.prototype.hasOwnProperty.call(build.build, key.value)) {
+      build.build[key.value] = {
+        id: props.component.id,
+        name: props.component.name,
+        price: props.component.price,
+        img_url: props.component.img_url,
+      }
+    } else {
+      console.error('[AddToBuild] aucune méthode pour ajouter le composant')
+      alert("Impossible d'ajouter: store non initialisé.")
+      return
+    }
+
+    // (optionnel) revalidation
     build.validateBuild?.()
+    console.debug('[AddToBuild] ajouté OK →', { key: key.value, id: props.component.id })
+  } catch (e) {
+    console.error('[AddToBuild] erreur', e)
+    alert("Une erreur est survenue lors de l'ajout au build.")
   } finally {
     busy.value = false
     confirmReplace.value = false
   }
 }
 
+/* ---------------------------- UI ---------------------------- */
 const sizeClass = computed(() => ({
   sm: 'px-3 py-1 text-xs',
   md: 'px-4 py-2 text-sm',
@@ -77,9 +143,8 @@ const sizeClass = computed(() => ({
       </span>
     </button>
 
-    <!-- Modal de remplacement minimaliste -->
-    <div v-if="confirmReplace"
-         class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+    <!-- Modal de remplacement -->
+    <div v-if="confirmReplace" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <div class="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl">
         <h3 class="text-lg font-bold mb-2">Remplacer le {{ key }}</h3>
         <p class="text-sm text-slate-700 mb-4">
@@ -87,10 +152,8 @@ const sizeClass = computed(() => ({
           Voulez-vous le remplacer par <b>{{ component.name }}</b> ?
         </p>
         <div class="flex justify-end gap-2">
-          <button class="px-4 py-2 rounded-lg bg-slate-200"
-                  @click="confirmReplace=false">Annuler</button>
-          <button class="px-4 py-2 rounded-lg bg-[#1ec3a6] text-white"
-                  @click="doAdd">Remplacer</button>
+          <button class="px-4 py-2 rounded-lg bg-slate-200" @click="confirmReplace=false">Annuler</button>
+          <button class="px-4 py-2 rounded-lg bg-[#1ec3a6] text-white" @click="doAdd">Remplacer</button>
         </div>
       </div>
     </div>

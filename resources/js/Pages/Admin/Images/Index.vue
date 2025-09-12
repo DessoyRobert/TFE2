@@ -49,7 +49,7 @@ function ownerLabel(row) {
       <div class="flex items-center gap-2">
         <!-- Lien vers ton formulaire d’upload générique -->
         <Link
-          :href="route('images.upload')"
+          :href="route('admin.images.upload')"
           class="px-4 py-2 rounded-xl bg-darknavy text-white hover:bg-primary"
         >
           Ajouter / Uploader
@@ -104,7 +104,7 @@ function ownerLabel(row) {
               </td>
               <td class="py-3 px-4">
                 <div class="flex items-center gap-2 justify-end">
-                  <!-- Rendre principale (si pertinent) -->
+                  <!-- Rendre principale (si pertinent) 
                   <button
                     v-if="row.has_owner && (row.type === 'Build' || row.type === 'Component')"
                     type="button"
@@ -113,7 +113,7 @@ function ownerLabel(row) {
                     title="Définir comme image principale"
                   >
                     Principale
-                  </button>
+                  </button>-->
 
                   <!-- Supprimer -->
                   <button

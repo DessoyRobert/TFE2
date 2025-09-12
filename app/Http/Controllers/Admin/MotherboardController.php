@@ -11,6 +11,7 @@ use Illuminate\Http\Response;
 
 class MotherboardController extends Controller
 {
+    
     // POST /admin/motherboards
     public function store(Request $request)
     {

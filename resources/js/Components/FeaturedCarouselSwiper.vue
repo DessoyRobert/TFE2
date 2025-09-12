@@ -3,6 +3,8 @@ import { computed } from 'vue'
 import { Link } from '@inertiajs/vue3'
 import { Swiper, SwiperSlide } from 'swiper/vue'
 import { Navigation, Pagination, Autoplay, A11y } from 'swiper/modules'
+import { safeImg, transformCloudinary, FALLBACK_IMG } from '@/utils/imageHelpers'
+
 
 const props = defineProps({
   // [{ id, name, img_url, display_total }]
@@ -38,7 +40,7 @@ function money(n) {
           <div class="relative aspect-[16/9] md:aspect-auto">
             <img
               class="w-full h-full object-cover"
-              :src="it.img_url || '/images/default.png'"
+              :src="safeImg(it.img_url, 960)"
               :alt="`Image du build ${it.name}`"
               loading="lazy"
               decoding="async"

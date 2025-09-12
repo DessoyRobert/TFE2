@@ -10,6 +10,7 @@ use Inertia\Inertia;
 
 class ComponentTypeController extends Controller
 {
+    
     // GET /admin/component-types
     public function index()
     {

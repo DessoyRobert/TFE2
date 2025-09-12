@@ -1,6 +1,8 @@
 <script setup>
 import { computed } from 'vue'
 import { Link } from '@inertiajs/vue3'
+import { safeImg, transformCloudinary, FALLBACK_IMG } from '@/utils/imageHelpers'
+
 
 const props = defineProps({
   // items: [{ id, name, img_url, display_total }]
@@ -36,12 +38,10 @@ function money(n) {
         >
           <img
             class="absolute block w-full h-full object-cover"
-            :src="it.img_url || '/images/default.png'"
+            :src="safeImg(it.img_url, 960)"
             :alt="`Image du build ${it.name}`"
           />
-          <div
-            class="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent flex items-end"
-          >
+          <div class="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent flex items-end">
             <div class="p-6 md:p-8 text-white">
               <h3 class="text-2xl md:text-3xl font-extrabold">{{ it.name }}</h3>
               <p class="mt-1 text-lg">À partir de <strong>{{ money(it.display_total) }}</strong></p>

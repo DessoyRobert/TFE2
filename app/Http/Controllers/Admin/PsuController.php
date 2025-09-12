@@ -11,6 +11,7 @@ use Illuminate\Http\Response;
 
 class PsuController extends Controller
 {
+    
     // POST /admin/psus
     public function store(Request $request)
     {

@@ -83,15 +83,18 @@ async function loadItems(category) {
   loading.value = true
   items.value = []
   try {
-    const res = await fetch(category.endpoint, { headers: { Accept: 'application/json' } })
-    if (!res.ok) throw new Error(`HTTP ${res.status}`)
-    const json = await res.json()
-    items.value = Array.isArray(json)
-      ? json
-      : Array.isArray(json.data)
-      ? json.data
-      : Array.isArray(json.items)
-      ? json.items
+    const res  = await fetch(category.endpoint, { headers: { Accept: 'application/json' } })
+    const text = await res.text()
+    let data; try { data = JSON.parse(text) } catch { data = text }
+
+    if (!res.ok) {
+      const msg = typeof data === 'string' ? data : (data?.message || JSON.stringify(data))
+      throw new Error(`${res.status} ${msg}`)
+    }
+
+    items.value = Array.isArray(data) ? data
+      : Array.isArray(data?.data) ? data.data
+      : Array.isArray(data?.items) ? data.items
       : []
   } catch (e) {
     console.error('Erreur chargement composants :', e)
@@ -99,6 +102,7 @@ async function loadItems(category) {
     loading.value = false
   }
 }
+
 
 function selectComponent(component) {
   buildStore.build[selectedCategory.value.key] = component

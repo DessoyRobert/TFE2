@@ -6,6 +6,7 @@ use App\Models\Category;
 
 class CategoryController extends Controller
 {
+     
     // GET /categories
     public function index()
     {

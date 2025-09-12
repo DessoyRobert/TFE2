@@ -11,6 +11,7 @@ use Illuminate\Http\Response;
 
 class GpuController extends Controller
 {
+    
     // POST /admin/gpus
     public function store(Request $request)
     {

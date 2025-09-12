@@ -85,15 +85,7 @@ async function submitEdit() {
     alert('Erreur lors de la mise à jour du build.')
   }
 }
-const form = useForm({
-  name: props.build?.name ?? '',
-  description: props.build?.description ?? '',
-  price: props.build?.price ?? '',
-  img_url: props.build?.img_url ?? '',
-  components: selectedComponents.value,
-  is_featured: !!props.build?.is_featured,     // 👈
-  featured_rank: props.build?.featured_rank ?? null, // 👈
-})
+
 
 </script>
 
@@ -157,19 +149,6 @@ const form = useForm({
           build[selectorKey] = item
           selectorKey = null
         }"
-      />
-    </div>
-    <div class="flex items-center gap-3">
-      <label class="inline-flex items-center gap-2">
-        <input type="checkbox" v-model="form.is_featured" />
-        <span>Mettre en avant (carousel)</span>
-      </label>
-      <input
-        v-model.number="form.featured_rank"
-        type="number"
-        min="1" max="3"
-        class="border rounded-xl px-3 py-2 w-24"
-        placeholder="Rang (1-3)"
       />
     </div>
 

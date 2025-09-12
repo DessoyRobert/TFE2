@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 
 class CompatibilityRuleController extends Controller
 {
+    
     // GET /admin/compatibility-rules
     public function index()
     {

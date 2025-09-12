@@ -9,6 +9,7 @@ use Illuminate\Http\Response;
 use Inertia\Inertia;
 class BrandController extends Controller
 {
+    
     // GET /admin/brands (optionnel pour admin panel)
     public function index(Request $request)
     {

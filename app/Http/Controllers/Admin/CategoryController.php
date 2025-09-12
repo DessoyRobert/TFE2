@@ -9,6 +9,7 @@ use Inertia\Inertia;
 
 class CategoryController extends Controller
 {
+    
     // GET /admin/categories
     public function index()
     {

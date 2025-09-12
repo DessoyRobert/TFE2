@@ -42,7 +42,7 @@ return [
     */
     'bank' => [
         'holder'       => env('BANK_HOLDER', 'César Loïc (Jarvistech)'),
-        'iban'         => env('BANK_IBAN', 'BE07 5084 4237'),
+        'iban'         => env('BANK_IBAN', 'BE00 0000 0000'),
         'bic'          => env('BANK_BIC', 'XXXXXX'),
         'payment_days' => env('BANK_PAYMENT_DAYS', 7),
     ],

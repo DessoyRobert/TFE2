@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Log;
 
 class BuildValidationTempController extends Controller
 {
+    
     public function __invoke(Request $request)
     {
         $componentIds = $request->input('component_ids', []);

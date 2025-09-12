@@ -339,4 +339,74 @@ class BuildController extends Controller
             return response()->json(['ok' => true]);
         });
     }
+    public function cloneForCurrentUser(Request $request, Build $build): \Illuminate\Http\JsonResponse
+    {
+        $user = Auth::user();
+        if (!$user) {
+            return response()->json(['ok' => false, 'message' => 'Authentification requise.'], 401);
+        }
+
+        // Autoriser si: build public OU owner OU admin
+        $isOwner = ((int)$build->user_id === (int)$user->id);
+        $isAdmin = (bool)($user->is_admin ?? false);
+        if (!$build->is_public && !$isOwner && !$isAdmin) {
+            return response()->json(['ok' => false, 'message' => 'Build non accessible.'], 403);
+        }
+
+        // Charger composants + pivots
+        $build->load(['components' => function ($q) {
+            $q->select('components.id', 'components.price');
+        }]);
+
+        // Créer le clone (privé par défaut)
+        $code = \Illuminate\Support\Str::upper(\Illuminate\Support\Str::random(8));
+        while (Build::where('build_code', $code)->exists()) {
+            $code = \Illuminate\Support\Str::upper(\Illuminate\Support\Str::random(8));
+        }
+
+        $clone = DB::transaction(function () use ($build, $user, $code) {
+            $new = Build::create([
+                'user_id'         => $user->id,
+                'name'            => $build->name,
+                'description'     => $build->description,
+                'img_url'         => $build->img_url,
+                'build_code'      => $code,
+                'total_price'     => 0,
+                'component_count' => 0,
+                'is_public'       => false, // le clone reste privé
+            ]);
+
+            foreach ($build->components as $c) {
+                $qty   = (int)($c->pivot->quantity ?? 1);
+                $price = (float)($c->price ?? 0);
+                $new->components()->attach($c->id, [
+                    'quantity'          => max(1, $qty),
+                    'price_at_addition' => $price,
+                ]);
+            }
+
+            // Recalcul simple (ou appelle ta méthode $new->recalculateTotals())
+            $rows = $new->components()->get(['components.id', 'components.price']);
+            $count = 0; $total = 0.0;
+            foreach ($rows as $row) {
+                $q = (int)($row->pivot->quantity ?? 1);
+                $p = (float)($row->pivot->price_at_addition ?? $row->price ?? 0);
+                $count += $q;
+                $total += $p * $q;
+            }
+            $new->fill([
+                'component_count' => $count,
+                'total_price'     => round($total, 2),
+            ])->save();
+
+            return $new;
+        });
+
+        return response()->json([
+            'ok'           => true,
+            'build_id'     => $clone->id,
+            'redirect_url' => route('checkout.index', ['build' => $clone->id]),
+        ], 201);
+    }
+
 }

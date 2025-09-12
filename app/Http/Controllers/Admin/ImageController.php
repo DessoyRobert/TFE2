@@ -13,9 +13,17 @@ use App\Models\Build;
 
 class ImageController extends Controller
 {
-    /**
-     * Liste paginée des images avec recherche
-     */
+    
+    protected function transformCdn(?string $url, ?int $w = null): ?string
+    {
+        if (!$url) return $url;
+        if (str_contains($url, '/upload/')) {
+            $insert = 'f_auto,q_auto' . ($w ? ',w_' . (int)$w : '');
+            return preg_replace('#/upload/#', '/upload/' . $insert . '/', $url, 1);
+        }
+        return $url;
+    }
+
     public function index(Request $request): Response
     {
         $q = trim((string) $request->get('q', ''));
@@ -23,16 +31,18 @@ class ImageController extends Controller
         $images = Image::query()
             ->with('imageable')
             ->when($q !== '', fn($qq) =>
-                $qq->where('url', 'ILIKE', "%{$q}%")
-                   ->orWhere('imageable_type', 'ILIKE', "%{$q}%")
-                   ->orWhere('imageable_id', $q)
+                $qq->where(function($w) use ($q) {
+                    $w->where('url', 'LIKE', "%{$q}%")
+                      ->orWhere('imageable_type', 'LIKE', "%{$q}%")
+                      ->orWhere('imageable_id', $q);
+                })
             )
             ->latest()
             ->paginate(24)
             ->withQueryString()
             ->through(fn($img) => [
                 'id'          => $img->id,
-                'url'         => $img->url,
+                'url'         => $this->transformCdn($img->url, 480) ?? $img->url,
                 'type'        => class_basename($img->imageable_type ?? ''),
                 'ref'         => $img->imageable_id,
                 'has_owner'   => (bool) $img->imageable,
@@ -49,64 +59,75 @@ class ImageController extends Controller
         ]);
     }
 
-    /**
-     * Affiche la page d’upload
-     */
     public function uploadPage(): Response
     {
         return Inertia::render('Admin/Images/Upload');
     }
 
-    /**
-     * Stocke une image sur Cloudinary et l’associe à un modèle
-     */
     public function store(Request $request, Cloudinary $cloudinary)
-    {
-        $request->validate([
-            'image'       => 'required|image|max:4096',
-            'target_type' => 'required|string|in:component,build',
-            'target_id'   => 'required|integer',
-        ]);
+{
+    $request->validate([
+        'target_type' => 'required|string|in:component,build',
+        'target_id'   => 'required|integer',
+        // l’un OU l’autre
+        'image'       => 'nullable|image|max:4096',
+        'image_url'   => 'nullable|url|max:2048',
+    ]);
 
-        // Upload vers Cloudinary
-        $response = $cloudinary->uploadApi()->upload(
-            $request->file('image')->getRealPath()
-        );
-
-        $uploadedUrl = $response['secure_url'];
-
-        // Résolution du modèle cible
-        $targetType = $request->input('target_type');
-        $targetId   = $request->input('target_id');
-
-        $owner = match ($targetType) {
-            'component' => Component::findOrFail($targetId),
-            'build'     => Build::findOrFail($targetId),
-        };
-
-        // Associe l’image
-        $owner->images()->create([
-            'url' => $uploadedUrl,
-        ]);
-
-        return redirect()->back()->with([
-            'success' => 'Image uploadée avec succès.',
-            'url'     => $uploadedUrl,
+    if (!$request->hasFile('image') && !$request->filled('image_url')) {
+        return back()->withErrors([
+            'image' => 'Veuillez choisir un fichier OU saisir une URL.',
+            'image_url' => 'Veuillez choisir un fichier OU saisir une URL.',
         ]);
     }
 
-    /**
-     * Supprime une image
-     */
-    public function destroy(Image $image)
+    // Résolution du modèle cible
+    $owner = match ($request->string('target_type')->toString()) {
+        'component' => Component::findOrFail($request->integer('target_id')),
+        'build'     => Build::findOrFail($request->integer('target_id')),
+    };
+
+    // Upload vers Cloudinary : fichier local ou URL distante
+    if ($request->hasFile('image')) {
+        $source = $request->file('image')->getRealPath();
+    } else {
+        $source = $request->string('image_url')->toString(); // ex: https://exemple.com/photo.jpg
+    }
+
+    // options Cloudinary optionnelles (ex: dossier)
+    $options = [
+        // 'folder' => 'jarvistech', // décommente si tu veux ranger dans un dossier
+        'resource_type' => 'image',
+    ];
+
+    $response = $cloudinary->uploadApi()->upload($source, $options);
+
+    $owner->images()->create([
+        'url'       => $response['secure_url'],
+        'public_id' => $response['public_id'] ?? null,
+    ]);
+
+    return redirect()->back()->with([
+        'success' => 'Image uploadée avec succès.',
+        'url'     => $response['secure_url'],
+    ]);
+}
+
+
+    public function destroy(Image $image, Cloudinary $cloudinary)
     {
+        if ($image->public_id) {
+            try {
+                $cloudinary->uploadApi()->destroy($image->public_id);
+            } catch (\Throwable $e) {
+                // Optionnel: log
+            }
+        }
+
         $image->delete();
         return back()->with('success', 'Image supprimée.');
     }
 
-    /**
-     * Définit une image comme principale (copie l’URL dans img_url du owner)
-     */
     public function makePrimary(Image $image)
     {
         $owner = $image->imageable;

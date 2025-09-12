@@ -5,7 +5,9 @@ namespace App\Http\Controllers;
 use App\Models\Psu;
 
 class PsuController extends Controller
-{
+{ protected string $fallbackImage =
+        'https://res.cloudinary.com/djllwl8c0/image/upload/v1753292540/Logo-JarvisTech-PNG-normalsansfond_pgxlrj.png';
+
     public function index()
     {
         $collection = Psu::with(['component.brand', 'component.images'])->paginate(15);
@@ -18,7 +20,7 @@ class PsuController extends Controller
                 'price' => $psu->component->price ?? '',
                 'img_url' => optional($psu->component->images->first())->url
                     ?? $psu->component->img_url
-                    ?? '/images/default.png',
+                    ?? $this->fallbackImage,
                 'wattage' => $psu->wattage,
                 'certification' => $psu->certification ?? '',
                 'modular' => $psu->modular,
@@ -40,7 +42,7 @@ class PsuController extends Controller
             'price' => $psu->component->price ?? '',
             'img_url' => optional($psu->component->images->first())->url
                 ?? $psu->component->img_url
-                ?? '/images/default.png',
+                ?? $this->fallbackImage,
             'wattage' => $psu->wattage,
             'certification' => $psu->certification ?? '',
             'modular' => $psu->modular,

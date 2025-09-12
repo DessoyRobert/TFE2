@@ -14,7 +14,7 @@ use App\Http\Controllers\CoolerController;
 use App\Http\Controllers\CaseModelController;
 use App\Http\Controllers\BrandController;
 use App\Http\Controllers\CategoryController;
-
+use App\Http\Controllers\Api\ComponentBrowseController;
 use App\Http\Controllers\Api\BuildValidationTempController;
 
 // ---------------------------------------------------------------------
@@ -55,6 +55,10 @@ Route::get('brands/{brand}', [BrandController::class, 'show']);
 Route::get('categories', [CategoryController::class, 'index']);
 Route::get('categories/{category}', [CategoryController::class, 'show']);
 
+Route::middleware('auth')->group(function () {
+    Route::post('/builds/{build}/clone', [ApiBuildController::class, 'cloneForCurrentUser'])
+        ->name('api.builds.clone');
+});
 // Validation/compat temporaire (publique)
 Route::post('builds/validate-temp', BuildValidationTempController::class);
 

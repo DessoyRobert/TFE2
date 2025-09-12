@@ -34,4 +34,5 @@ class Order extends Model
     protected function customerName(): Attribute {
         return Attribute::get(fn() => trim($this->customer_first_name.' '.$this->customer_last_name));
     }
+
 }

@@ -5,19 +5,37 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\ComponentResource;
 use App\Models\Component;
+use Illuminate\Support\Facades\DB;
 
 class ComponentController extends Controller
 {
+    
+    /** renvoie LIKE (MySQL) ou ILIKE (Postgres) */
+    protected function likeOp(): string
+    {
+        return DB::getDriverName() === 'pgsql' ? 'ILIKE' : 'LIKE';
+    }
+
     public function index()
     {
+        $op = $this->likeOp();
+
         // charge brand & type pour éviter N+1
         $q = Component::query()->with(['brand','type']);
 
-        // filtres simples (optionnels)
+        // filtres simples (case-insensitive portable)
         if ($s = request()->query('search')) {
-            $q->where('name', 'like', "%{$s}%")
-              ->orWhereHas('brand', fn($b)=>$b->where('name','ilike',"%{$s}%"))
-              ->orWhereHas('type',  fn($t)=>$t->where('name','ilike',"%{$s}%"));
+            $needle = '%'.mb_strtolower($s).'%';
+
+            $q->where(function ($qq) use ($op, $needle) {
+                $qq->whereRaw("LOWER(components.name) {$op} ?", [$needle])
+                   ->orWhereHas('brand', function ($b) use ($op, $needle) {
+                       $b->whereRaw("LOWER(brands.name) {$op} ?", [$needle]);
+                   })
+                   ->orWhereHas('type', function ($t) use ($op, $needle) {
+                       $t->whereRaw("LOWER(component_types.name) {$op} ?", [$needle]);
+                   });
+            });
         }
 
         // tri simple
@@ -25,7 +43,7 @@ class ComponentController extends Controller
         $dir    = request()->boolean('sortDesc', true) ? 'desc' : 'asc';
         $q->orderBy($sortBy, $dir);
 
-        $perPage = (int) (request('per_page') ?? 15);
+        $perPage   = (int) (request('per_page') ?? 15);
         $paginated = $q->paginate($perPage)->withQueryString();
 
         return ComponentResource::collection($paginated);

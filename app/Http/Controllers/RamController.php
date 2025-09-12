@@ -5,7 +5,9 @@ namespace App\Http\Controllers;
 use App\Models\Ram;
 
 class RamController extends Controller
-{
+{ protected string $fallbackImage =
+        'https://res.cloudinary.com/djllwl8c0/image/upload/v1753292540/Logo-JarvisTech-PNG-normalsansfond_pgxlrj.png';
+
     public function index()
     {
         $collection = Ram::with(['component.brand', 'component.images'])->paginate(15);
@@ -19,7 +21,7 @@ class RamController extends Controller
                 'price' => $ram->component->price ?? '',
                 'img_url' => optional($ram->component->images->first())->url
                     ?? $ram->component->img_url
-                    ?? '/images/default.png',
+                    ?? $this->fallbackImage,
                 'type' => $ram->type,
                 'capacity_gb' => $ram->capacity_gb,
                 'modules' => $ram->modules,
@@ -43,7 +45,7 @@ class RamController extends Controller
             'price' => $ram->component->price ?? '',
             'img_url' => optional($ram->component->images->first())->url
                 ?? $ram->component->img_url
-                ?? '/images/default.png',
+                ?? $this->fallbackImage,
             'type' => $ram->type,
             'capacity_gb' => $ram->capacity_gb,
             'modules' => $ram->modules,

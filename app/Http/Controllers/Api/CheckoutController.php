@@ -15,6 +15,7 @@ use App\Models\Build;
 use App\Models\Component;
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Models\Payment;
 
 /**
  * CheckoutController
@@ -22,9 +23,11 @@ use App\Models\OrderItem;
  * Crée une commande à partir d'un build et de ses composants.
  * Règle métier : le prix de la commande est figé à l'instant T
  * (snapshot des prix composant au moment de la création).
+ * MVP paiement offline : virement bancaire (table payments, status pending).
  */
 class CheckoutController extends Controller
 {
+    
     /**
      * POST /api/checkout
      *
@@ -127,7 +130,7 @@ class CheckoutController extends Controller
 
         if ($existing = Order::where('user_id', $userId)
                 ->where('idempotency_key', $idempotencyKey)
-                ->with('items')
+                ->with(['items','payments' => fn($q) => $q->latest()])
                 ->first()) {
 
             $itemsPayload = $existing->items->map(function ($it) {
@@ -141,6 +144,18 @@ class CheckoutController extends Controller
                     'line_total' => (string) $it->line_total,
                 ];
             })->values();
+
+            $p = $existing->payments->first();
+            $bank = null;
+            if ($p && $p->method === 'bank_transfer') {
+                $bank = [
+                    'holder'           => $p->meta['beneficiary'] ?? config('services.bank.holder', 'PCBuilder SRL'),
+                    'iban'             => $p->meta['iban'] ?? config('services.bank.iban', 'BE00 0000 0000 0000'),
+                    'bic'              => $p->meta['bic'] ?? config('services.bank.bic', 'XXXXXX'),
+                    'reference'        => $p->meta['reference'] ?? ('ORDER-' . $existing->id),
+                    'payment_deadline' => $p->meta['due_date'] ?? null,
+                ];
+            }
 
             return response()->json([
                 'message'        => 'Commande déjà créée (idempotence).',
@@ -156,7 +171,7 @@ class CheckoutController extends Controller
                     'grand'    => $existing->grand_total,
                 ],
                 'items'        => $itemsPayload,
-                'bank'         => null,
+                'bank'         => $bank,
                 'redirect_url' => route('checkout.show', ['order' => $existing->id]),
             ], 200);
         }
@@ -267,25 +282,38 @@ class CheckoutController extends Controller
                     ]);
                 }
 
-                // --- Coordonnées virement (si bank_transfer)
+                // --- Paiement offline (virement) -> Payment pending + bloc bank pour le front
                 $bank = null;
                 if ($order->payment_method === 'bank_transfer') {
-                    $days = (int) config('services.bank.payment_days', 7);
-                    $bankRef = 'ORDER-' . $order->id;
+                    $days     = (int) config('services.bank.payment_days', 7);
                     $deadline = now()->addDays($days);
+                    $bankRef  = 'ORDER-' . $order->id;
 
-                    // on persiste ces champs si le modèle/DB les supporte
-                    $order->forceFill([
-                        'bank_reference'    => $bankRef,
-                        'payment_deadline'  => $deadline,
-                    ])->save();
+                    $payment = Payment::create([
+                        'order_id'       => $order->id,
+                        'amount'         => $order->grand_total,
+                        'currency'       => $order->currency ?? 'EUR',
+                        'method'         => 'bank_transfer',
+                        'status'         => 'pending',
+                        'transaction_id' => null,
+                        'meta'           => [
+                            'beneficiary' => config('services.bank.holder', 'PCBuilder SRL'),
+                            'iban'        => config('services.bank.iban', 'BE00 0000 0000 0000'),
+                            'bic'         => config('services.bank.bic', 'XXXXXX'),
+                            'reference'   => $bankRef,
+                            'due_date'    => $deadline->toDateString(),
+                        ],
+                    ]);
+
+                    // Harmonise l’état commande
+                    $order->update(['payment_status' => 'pending']);
 
                     $bank = [
-                        'holder'           => config('services.bank.holder', 'PCBuilder SRL'),
-                        'iban'             => config('services.bank.iban', 'BE00 0000 0000 0000'),
-                        'bic'              => config('services.bank.bic', 'XXXXXX'),
-                        'reference'        => $bankRef,
-                        'payment_deadline' => $deadline->format('Y-m-d'),
+                        'holder'           => $payment->meta['beneficiary'],
+                        'iban'             => $payment->meta['iban'],
+                        'bic'              => $payment->meta['bic'],
+                        'reference'        => $payment->meta['reference'],
+                        'payment_deadline' => $payment->meta['due_date'],
                     ];
                 }
 
@@ -307,7 +335,7 @@ class CheckoutController extends Controller
                     'message'        => 'Commande créée.',
                     'order_id'       => $order->id,
                     'status'         => $order->status,
-                    'payment_status' => $order->payment_status,
+                    'payment_status' => $order->payment_status, // 'pending' si virement
                     'currency'       => $order->currency,
                     'amounts'        => [
                         'subtotal' => $order->subtotal,
@@ -316,9 +344,9 @@ class CheckoutController extends Controller
                         'discount' => $order->discount_total,
                         'grand'    => $order->grand_total,
                     ],
-                    'items'         => $itemsPayload,
-                    'bank'          => $bank,
-                    'redirect_url'  => route('checkout.show', ['order' => $order->id]),
+                    'items'        => $itemsPayload,
+                    'bank'         => $bank,
+                    'redirect_url' => route('checkout.show', ['order' => $order->id]),
                 ], 201);
             });
         });

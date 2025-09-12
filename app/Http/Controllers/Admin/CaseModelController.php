@@ -10,6 +10,7 @@ use Illuminate\Http\Response;
 
 class CaseModelController extends Controller
 {
+    
     // POST /admin/case-models
     public function store(Request $request)
     {

@@ -6,6 +6,9 @@ use App\Models\Cpu;
 
 class CpuController extends Controller
 {
+     protected string $fallbackImage =
+        'https://res.cloudinary.com/djllwl8c0/image/upload/v1753292540/Logo-JarvisTech-PNG-normalsansfond_pgxlrj.png';
+
     // GET /cpus
     public function index()
     {
@@ -20,7 +23,7 @@ class CpuController extends Controller
                 'price'         => $cpu->component->price ?? '',
                 'img_url'       => optional($cpu->component->images->first())->url
                                     ?? $cpu->component->img_url
-                                    ?? '/images/default.png',
+                                    ?? $this->fallbackImage,
                 'socket'        => $cpu->socket,
                 'core_count'    => $cpu->core_count,
                 'thread_count'  => $cpu->thread_count,
@@ -46,7 +49,7 @@ class CpuController extends Controller
             'price'         => $cpu->component->price ?? '',
             'img_url'       => optional($cpu->component->images->first())->url
                                 ?? $cpu->component->img_url
-                                ?? '/images/default.png',
+                                ?? $this->fallbackImage,
             'socket'        => $cpu->socket,
             'core_count'    => $cpu->core_count,
             'thread_count'  => $cpu->thread_count,

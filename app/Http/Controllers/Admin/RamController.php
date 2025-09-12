@@ -11,6 +11,7 @@ use Illuminate\Http\Response;
 
 class RamController extends Controller
 {
+    
     // POST /admin/rams
     public function store(Request $request)
     {

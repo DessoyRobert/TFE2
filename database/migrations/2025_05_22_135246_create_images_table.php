@@ -9,7 +9,7 @@ return new class extends Migration {
         $table->id();
         $table->string('url');
         $table->nullableMorphs('imageable'); // ➜ crée imageable_id + imageable_type
-        $table->string('imageable_type');
+        //$table->string('imageable_type');
         $table->timestamps();
         });
     }

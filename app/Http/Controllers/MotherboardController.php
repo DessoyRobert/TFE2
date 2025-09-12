@@ -5,7 +5,9 @@ namespace App\Http\Controllers;
 use App\Models\Motherboard;
 
 class MotherboardController extends Controller
-{
+{ protected string $fallbackImage =
+        'https://res.cloudinary.com/djllwl8c0/image/upload/v1753292540/Logo-JarvisTech-PNG-normalsansfond_pgxlrj.png';
+
     public function index()
     {
         $collection = Motherboard::with(['component.brand', 'component.images'])->paginate(15);
@@ -18,7 +20,7 @@ class MotherboardController extends Controller
                 'price' => $mb->component->price ?? '',
                 'img_url' => optional($mb->component->images->first())->url
                     ?? $mb->component->img_url
-                    ?? '/images/default.png',
+                    ?? $this->fallbackImage,
                 'socket' => $mb->socket,
                 'chipset' => $mb->chipset,
                 'form_factor' => $mb->form_factor,
@@ -41,7 +43,7 @@ class MotherboardController extends Controller
             'price' => $motherboard->component->price ?? '',
             'img_url' => optional($motherboard->component->images->first())->url
                 ?? $motherboard->component->img_url
-                ?? '/images/default.png',
+                ?? $this->fallbackImage,
             'socket' => $motherboard->socket,
             'chipset' => $motherboard->chipset,
             'form_factor' => $motherboard->form_factor,

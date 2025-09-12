@@ -23,19 +23,35 @@ class OrderController extends Controller
             abort(404);
         }
 
-        // Charger les items (le nom vient du snapshot)
-        $order->load('items');
+        // Charger items + dernier paiement (offline virement)
+        $order->load([
+            'items',
+            'payments' => fn($q) => $q->latest(),
+        ]);
 
-        // Bloc virement si besoin (via config/services.php)
+        $p = $order->payments->first();
+
+        // Bloc virement (priorité aux données du Payment si présent)
         $bank = null;
         if ($order->payment_method === 'bank_transfer') {
-            $bank = [
-                'holder'           => config('services.bank.holder', 'PCBuilder SRL'),
-                'iban'             => config('services.bank.iban', 'BE00 0000 0000 0000'),
-                'bic'              => config('services.bank.bic', 'XXXXXX'),
-                'reference'        => $order->bank_reference ?? ('ORDER-' . $order->id),
-                'payment_deadline' => optional($order->payment_deadline)->format('Y-m-d'),
-            ];
+            if ($p && $p->method === 'bank_transfer') {
+                $bank = [
+                    'holder'           => $p->meta['beneficiary'] ?? config('services.bank.holder', 'PCBuilder SRL'),
+                    'iban'             => $p->meta['iban'] ?? config('services.bank.iban', 'BE00 0000 0000 0000'),
+                    'bic'              => $p->meta['bic'] ?? config('services.bank.bic', 'XXXXXX'),
+                    'reference'        => $p->meta['reference'] ?? ('ORDER-' . $order->id),
+                    'payment_deadline' => $p->meta['due_date'] ?? null,
+                ];
+            } else {
+                // Fallback si pas de payment en base
+                $bank = [
+                    'holder'           => config('services.bank.holder', 'PCBuilder SRL'),
+                    'iban'             => config('services.bank.iban', 'BE00 0000 0000 0000'),
+                    'bic'              => config('services.bank.bic', 'XXXXXX'),
+                    'reference'        => $order->bank_reference ?? ('ORDER-' . $order->id),
+                    'payment_deadline' => optional($order->payment_deadline)->format('Y-m-d'),
+                ];
+            }
         }
 
         // Items au format attendu par le front

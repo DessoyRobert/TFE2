@@ -12,6 +12,9 @@ use Illuminate\Support\Str;
 
 class BuildController extends Controller
 {
+    /** Image par défaut (Cloudinary) */
+    protected string $fallbackImage = 'https://res.cloudinary.com/djllwl8c0/image/upload/v1753292540/Logo-JarvisTech-PNG-normalsansfond_pgxlrj.png';
+
     /**
      * Sous-requête SQL qui calcule le prix live d'un build:
      * SUM(components.price * build_component.quantity)
@@ -25,31 +28,67 @@ class BuildController extends Controller
     }
 
     /**
-     * Index public des builds.
-     * Affiche:
-     *  - les builds publics
-     *  - + les builds de l'utilisateur connecté (si authentifié)
-     * Le prix affiché est TOUJOURS dynamique (prix actuels des composants).
-     * Ajout: "featured" (3 builds à la une) pour un carousel.
+     * Applique une transformation simple Cloudinary (f_auto,q_auto[,w_*])
+     * Ne modifie pas les URLs non-Cloudinary.
      */
-    public function index()
+    protected function transformCdn(?string $url, ?int $w = null): ?string
     {
-        $user = Auth::user();
-        $sort = request('sort', 'newest'); // price_asc|price_desc|newest
+        if (!$url) return $this->fallbackImage;
+
+        if (str_contains($url, '/upload/')) {
+            $insertion = 'f_auto,q_auto';
+            if ($w && $w > 0) {
+                $insertion .= ',w_' . (int)$w;
+            }
+            return preg_replace('#/upload/#', '/upload/' . $insertion . '/', $url, 1);
+        }
+
+        return $url;
+    }
+
+    /**
+     * Résout l'image principale d'un build, priorité:
+     * 1) image liée au build
+     * 2) première image du premier composant
+     * 3) builds.img_url (legacy)
+     * 4) fallback Cloudinary
+     */
+    protected function resolvePrimaryImage(Build $build, ?int $w = 640): string
+    {
+        $direct = optional($build->images->first())->url;
+        if ($direct) return $this->transformCdn($direct, $w) ?? $direct;
+
+        $compImg = optional($build->components->first()?->images->first())->url;
+        if ($compImg) return $this->transformCdn($compImg, $w) ?? $compImg;
+
+        if ($build->img_url) return $this->transformCdn($build->img_url, $w) ?? $build->img_url;
+
+        return $this->fallbackImage;
+    }
+
+    /**
+     * Index public des builds (+ builds de l'utilisateur).
+     * Prix affiché = dynamique (live).
+     * Ajoute "featured" (3 builds à la une) pour le carousel.
+     * Recherche (q), tri étendu, per_page, withQueryString()
+     */
+    public function index(Request $request)
+    {
+        $user     = Auth::user();
+        $sort     = $request->get('sort', 'newest');  // price_asc|price_desc|newest|oldest
+        $q        = trim((string) $request->get('q', ''));
+        $perPage  = max(12, (int) $request->get('per_page', 12));
 
         $query = Build::query()
             ->whereHas('components')
             ->where(function ($sub) use ($user) {
                 $sub->where('is_public', true);
-                if ($user) {
-                    $sub->orWhere('user_id', $user->id);
-                }
+                if ($user) $sub->orWhere('user_id', $user->id);
             })
-            // On ajoute la colonne virtuelle "live_total" calculée en SQL
             ->select('builds.*')
             ->selectSub($this->liveTotalSubquery(), 'live_total')
-            // Eager-load léger pour l'affichage (image/brand/type)
             ->with([
+                'images:id,imageable_id,imageable_type,url',
                 'components' => function ($q) {
                     $q->select('components.id', 'components.name', 'components.price', 'components.brand_id', 'components.component_type_id');
                 },
@@ -58,53 +97,64 @@ class BuildController extends Controller
                 'components.type:id,name',
             ]);
 
-        // Tri optionnel (triable sur la colonne calculée live_total)
-        if ($sort === 'price_asc') {
-            $query->orderBy('live_total', 'asc');
-        } elseif ($sort === 'price_desc') {
-            $query->orderBy('live_total', 'desc');
-        } else {
-            $query->latest('builds.created_at');
+        // Recherche portable (MySQL + PostgreSQL)
+        if ($q !== '') {
+            $needle = '%'.mb_strtolower($q).'%';
+            $query->where(function ($qq) use ($needle, $q) {
+                $qq->whereRaw('LOWER(builds.name) LIKE ?', [$needle])
+                   ->orWhereRaw('LOWER(builds.description) LIKE ?', [$needle])
+                   // Si Postgres, remplacer CHAR par TEXT si besoin
+                   ->orWhereRaw('CAST(builds.id AS CHAR) LIKE ?', ['%'.$q.'%']);
+            });
         }
 
-        $builds = $query->paginate(12)->through(function (Build $build) {
-            $primaryImage = $build->img_url
-                ?? optional($build->components->first()?->images->first())->url
-                ?? '/images/default.png';
+        // Tri
+        switch ($sort) {
+            case 'price_asc':  $query->orderBy('live_total', 'asc');  break;
+            case 'price_desc': $query->orderBy('live_total', 'desc'); break;
+            case 'oldest':     $query->orderBy('builds.created_at', 'asc');  break;
+            case 'newest':
+            default:           $query->orderBy('builds.created_at', 'desc'); break;
+        }
 
-            return [
-                'id'            => $build->id,
-                'name'          => $build->name,
-                'description'   => $build->description,
-                // Prix dynamique depuis SQL (toujours actuel)
-                'display_total' => round((float) $build->live_total, 2),
-                'img_url'       => $primaryImage,
-                'components'    => $build->components->map(function ($c) {
-                    return [
-                        'id'    => $c->id,
-                        'name'  => $c->name,
-                        'price' => (float) $c->price,
-                        'brand' => $c->brand?->only(['id','name']),
-                        'component_type' => [
-                            'slug' => Str::slug($c->type->name ?? ''),
-                            'name' => $c->type->name ?? null,
-                        ],
-                        'images' => $c->images?->map(fn($img) => [
-                            'id'  => $img->id,
-                            'url' => $img->url,
-                        ])->values() ?? [],
-                    ];
-                })->values(),
-            ];
-        });
+        $builds = $query
+            ->paginate($perPage)
+            ->withQueryString()
+            ->through(function (Build $build) {
+                $primaryImage = $this->resolvePrimaryImage($build, 640);
 
-        // Récupérer 3 builds "à la une" pour le carousel
+                return [
+                    'id'            => $build->id,
+                    'name'          => $build->name,
+                    'description'   => $build->description,
+                    'display_total' => round((float) $build->live_total, 2),
+                    'img_url'       => $primaryImage,
+                    'components'    => $build->components->map(function ($c) {
+                        return [
+                            'id'    => $c->id,
+                            'name'  => $c->name,
+                            'price' => (float) $c->price,
+                            'brand' => $c->brand?->only(['id','name']),
+                            'component_type' => [
+                                'slug' => Str::slug($c->type->name ?? ''),
+                                'name' => $c->type->name ?? null,
+                            ],
+                            'images' => $c->images?->map(fn($img) => [
+                                'id'  => $img->id,
+                                'url' => $this->transformCdn($img->url, 320) ?? $img->url,
+                            ])->values() ?? [],
+                        ];
+                    })->values(),
+                ];
+            });
+
+        // Builds "à la une" pour le carousel
         $featured = Build::query()
             ->where('is_public', true)
             ->where('is_featured', true)
             ->orderByRaw('COALESCE(featured_rank, 999) ASC')
             ->limit(3)
-            ->with(['components.images', 'components.brand', 'components.type'])
+            ->with(['images:id,imageable_id,imageable_type,url', 'components.images'])
             ->select('builds.*')
             ->selectSub($this->liveTotalSubquery(), 'live_total')
             ->get()
@@ -112,16 +162,18 @@ class BuildController extends Controller
                 return [
                     'id'            => $b->id,
                     'name'          => $b->name,
-                    'img_url'       => $b->img_url
-                        ?? optional($b->components->first()?->images->first())->url
-                        ?? '/images/default.png',
+                    'img_url'       => $this->resolvePrimaryImage($b, 960),
                     'display_total' => round((float) $b->live_total, 2),
                 ];
             });
 
         return Inertia::render('Builds/Index', [
             'builds'   => $builds,
-            'filters'  => ['sort' => $sort],
+            'filters'  => [
+                'q'        => $q,
+                'sort'     => $sort,
+                'per_page' => $perPage,
+            ],
             'featured' => $featured,
         ]);
     }
@@ -202,18 +254,18 @@ class BuildController extends Controller
             $build = Build::create([
                 'name'            => $data['name'],
                 'description'     => $data['description'] ?? '',
-                'img_url'         => $data['img_url'] ?? null,
-                'price'           => $data['price'] ?? null, // legacy, non utilisé pour l'affichage
+                'img_url'         => $data['img_url'] ?? null, // legacy
+                'price'           => $data['price'] ?? null,   // legacy
                 'user_id'         => Auth::id(),
                 'build_code'      => strtoupper(Str::random(8)),
-                'total_price'     => 0,   // reporting interne éventuel
+                'total_price'     => 0,
                 'component_count' => 0,
             ]);
 
             foreach ($uniqueByType as $typeKey => $comp) {
                 $build->components()->attach($comp->id, [
                     'quantity'          => 1,
-                    'price_at_addition' => (float)($comp->price ?? 0), // snapshot utile pour l'historique
+                    'price_at_addition' => (float)($comp->price ?? 0),
                 ]);
             }
 
@@ -227,7 +279,6 @@ class BuildController extends Controller
                 ]);
             }
 
-            // Met à jour total_price/component_count (reporting), l'affichage reste dynamique
             $build->recalculateTotals();
 
             return redirect()
@@ -244,12 +295,12 @@ class BuildController extends Controller
     {
         $user = Auth::user();
 
-        // On recharge le build avec la colonne "live_total" calculée en SQL
         $build = Build::query()
             ->whereKey($build->id)
             ->select('builds.*')
             ->selectSub($this->liveTotalSubquery(), 'live_total')
             ->with([
+                'images:id,imageable_id,imageable_type,url',
                 'components' => function ($q) {
                     $q->select('components.id', 'components.name', 'components.price', 'components.brand_id', 'components.component_type_id');
                 },
@@ -259,23 +310,17 @@ class BuildController extends Controller
             ])
             ->firstOrFail();
 
-        // Autorisation: public ou propriétaire/admin
         $canView = $build->is_public
             || ($user && ($user->id === $build->user_id || ($user->is_admin ?? false)));
         if (!$canView) abort(404);
 
-        // Image principale
-        $primaryImage = $build->img_url
-            ?? optional($build->components->first()?->images->first())->url
-            ?? '/images/default.png';
+        $primaryImage = $this->resolvePrimaryImage($build, 960);
 
-        // On mappe un payload clair pour la vue
         $payload = [
             'id'            => $build->id,
             'name'          => $build->name,
             'description'   => $build->description,
             'img_url'       => $primaryImage,
-            // => PRIX LIVE TOUJOURS À JOUR
             'display_total' => round((float) $build->live_total, 2),
             'components'    => $build->components->map(function ($c) {
                 return [
@@ -284,12 +329,12 @@ class BuildController extends Controller
                     'price' => (float) $c->price,
                     'brand' => $c->brand?->only(['id','name']),
                     'component_type' => [
-                        'slug' => \Illuminate\Support\Str::slug($c->type->name ?? ''),
+                        'slug' => Str::slug($c->type->name ?? ''),
                         'name' => $c->type->name ?? null,
                     ],
                     'images' => $c->images?->map(fn($img) => [
                         'id'  => $img->id,
-                        'url' => $img->url,
+                        'url' => $this->transformCdn($img->url, 480) ?? $img->url,
                     ])->values() ?? [],
                 ];
             })->values(),
@@ -297,5 +342,4 @@ class BuildController extends Controller
 
         return Inertia::render('Builds/Show', ['build' => $payload]);
     }
-
 }

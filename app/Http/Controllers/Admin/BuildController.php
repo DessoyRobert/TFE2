@@ -11,8 +11,9 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 
 class BuildController extends Controller
-{
-    // GET /admin/builds
+{   
+     /** Image par défaut (Cloudinary) */
+        // GET /admin/builds
     public function index()
     {
         $builds = Build::with('components.brand')->paginate(15);

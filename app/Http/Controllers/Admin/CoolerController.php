@@ -11,6 +11,7 @@ use Illuminate\Http\Response;
 
 class CoolerController extends Controller
 {
+    
     // POST /admin/coolers
     public function store(Request $request)
     {

@@ -6,6 +6,9 @@ use App\Models\CaseModel;
 
 class CaseModelController extends Controller
 {
+      protected string $fallbackImage =
+        'https://res.cloudinary.com/djllwl8c0/image/upload/v1753292540/Logo-JarvisTech-PNG-normalsansfond_pgxlrj.png';
+
     /**
      * Retourne une liste paginée de boîtiers (CaseModels) avec leurs composants,
      * marques et images Cloudinary.
@@ -26,7 +29,7 @@ class CaseModelController extends Controller
                 // On prend la 1ère image Cloudinary si dispo, sinon fallback
                 'img_url'           => optional($case->component->images->first())->url 
                                         ?? $case->component->img_url 
-                                        ?? '/images/default.png',
+                                        ?? $this->fallbackImage,
                 'form_factor'       => $case->form_factor,
                 'max_gpu_length'    => $case->max_gpu_length,
                 'max_cooler_height' => $case->max_cooler_height,
@@ -52,7 +55,7 @@ class CaseModelController extends Controller
             'price'             => $case->component->price ?? '',
             'img_url'           => optional($case->component->images->first())->url 
                                     ?? $case->component->img_url 
-                                    ?? '/images/default.png',
+                                    ?? $this->fallbackImage,
             'form_factor'       => $case->form_factor,
             'max_gpu_length'    => $case->max_gpu_length,
             'max_cooler_height' => $case->max_cooler_height,

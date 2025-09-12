@@ -33,6 +33,7 @@ use App\Http\Requests\OrderStatusRequest;
  */
 class OrderController extends Controller
 {
+    
     /**
      * Service métier pour la gestion des commandes (création, recalcul des totaux, paiements, etc.).
      * Facultatif : si non utilisé, commentez la propriété + le constructeur.

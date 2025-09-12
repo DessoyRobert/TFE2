@@ -11,6 +11,7 @@ use Illuminate\Http\Response;
 
 class StorageController extends Controller
 {
+    
     // POST /admin/storages
     public function store(Request $request)
     {
